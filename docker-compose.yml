@@ -1,0 +1,47 @@
+version: '3.1'
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator.Dockerfile
+    ports:
+      - "5438:5432"
+    networks:
+      net:
+        ipv4_address: 192.168.240.2
+  agent:
+    deploy:
+      mode: replicated
+      replicas: 2
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    ports:
+      - "5439:5432"
+    networks:
+      net:
+        ipv4_address: 192.168.240.3
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: calc_db
+      PGDATA: /var/lib/postgresql/data/
+    ports:
+      - "5436:5432"
+    volumes:
+      - db:/var/lib/postgresql/data/
+    networks:
+      net:
+        ipv4_address: 192.168.240.4
+networks:
+  net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.240.0/24
+
+volumes:
+  db:
