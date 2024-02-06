@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Env         string `hcl:"env" env:"ENV" default:"dev"`
-	DatabaseDSN string `hcl:"database_dsn" env:"DB_DSN" default:"postgres://postgres:postgres@localhost:5437/postgres?sslmode=disable"`
+	Env          string `hcl:"env" env:"ENV" default:"dev"`
+	DatabaseDSN  string `hcl:"database_dsn" env:"DB_DSN" default:"postgres://postgres:postgres@localhost:5437/postgres?sslmode=disable"`
+	AgentsNumber int    `hcl:"agents_number" env:"AGENTS_NUMBER" default:"2"`
 }
 
 var (

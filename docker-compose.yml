@@ -1,23 +1,23 @@
 version: '3.1'
+
 services:
   orchestrator:
     build:
       context: .
       dockerfile: orchestrator.Dockerfile
+    depends_on:
+      - agent
     ports:
-      - "5438:5432"
+      - "5441:5432"
     networks:
       net:
         ipv4_address: 192.168.240.2
   agent:
-    deploy:
-      mode: replicated
-      replicas: 2
     build:
       context: .
       dockerfile: agent.Dockerfile
     ports:
-      - "5439:5432"
+      - "5440:5432"
     networks:
       net:
         ipv4_address: 192.168.240.3
@@ -30,7 +30,7 @@ services:
       POSTGRES_DB: calc_db
       PGDATA: /var/lib/postgresql/data/
     ports:
-      - "5437:5432"
+      - "5442:5432"
     volumes:
       - db:/var/lib/postgresql/data/
     networks:
