@@ -1,6 +1,6 @@
 CREATE TABLE expressions (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT PRIMARY KEY,
     expression TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
-    is_taken BOOLEAN NOT NULL DEFAULT TRUE
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    is_taken BOOLEAN NOT NULL DEFAULT FALSE
 );
