@@ -57,6 +57,26 @@ func (s *ExpressionPostgresStorage) NonTakenExpressions(context context.Context)
 	}), nil
 }
 
+func (s *ExpressionPostgresStorage) TakenExpression(context context.Context, id int64) error {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	row := conn.QueryRowContext(
+		context,
+		`UPDATE expressions SET is_taken = true WHERE id = $1`,
+		id,
+	)
+
+	if err := row.Err(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type dbExpression struct {
 	ID         int64     `db:"id"`
 	Expression string    `db:"expression"`

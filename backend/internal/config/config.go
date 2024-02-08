@@ -29,7 +29,7 @@ func Get() Config {
 		})
 
 		if err := loader.Load(); err != nil {
-			log.Printf("[ERROR] failed to load config: %s", err)
+			log.Printf("failed to load config: %v", err)
 		}
 	})
 	return cfg
