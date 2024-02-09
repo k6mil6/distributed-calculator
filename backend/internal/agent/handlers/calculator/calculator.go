@@ -10,9 +10,9 @@ import (
 )
 
 type Request struct {
-	ID         string             `json:"id,required"`
-	Expression string             `json:"expression,required"`
-	Timeouts   map[string]float64 `json:"timeouts,required"`
+	ID         string  `json:"id,required"`
+	Expression string  `json:"expression,required"`
+	Timeout    float64 `json:"timeouts,required"`
 }
 
 type Response struct {

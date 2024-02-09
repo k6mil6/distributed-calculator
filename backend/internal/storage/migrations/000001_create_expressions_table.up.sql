@@ -2,5 +2,6 @@ CREATE TABLE expressions (
     id BIGINT PRIMARY KEY,
     expression TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    is_taken BOOLEAN NOT NULL DEFAULT FALSE
+    is_taken BOOLEAN NOT NULL DEFAULT FALSE,
+    is_done BOOLEAN NOT NULL DEFAULT FALSE,
 );

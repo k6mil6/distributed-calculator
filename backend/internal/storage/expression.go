@@ -82,4 +82,5 @@ type dbExpression struct {
 	Expression string    `db:"expression"`
 	CreatedAt  time.Time `db:"created_at"`
 	IsTaken    bool      `db:"is_taken"`
+	IsDone     bool      `db:"is_done"`
 }
