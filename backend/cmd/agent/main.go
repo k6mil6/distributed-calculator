@@ -1,8 +1,7 @@
 package main
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/k6mil6/distributed-calculator/backend/internal/agent/worker"
 	"github.com/k6mil6/distributed-calculator/backend/internal/config"
 	"github.com/k6mil6/distributed-calculator/backend/pkg/logger"
 	"log/slog"
@@ -14,10 +13,12 @@ func main() {
 
 	log = log.With(slog.String("env", cfg.Env))
 
-	router := chi.NewRouter()
-
-	//router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
+	for i := 0; i < cfg.AgentsNumber; i++ {
+		go func(i int) {
+			w := worker.New(int64(i))
+			w.Start(cfg.OrchestratorURL, log, cfg.WorkerTimeout, cfg.HeartbeatTimeout)
+		}(i)
+	}
 
 	log.Debug("logger debug mode enabled")
 

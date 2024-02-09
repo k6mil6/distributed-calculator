@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/k6mil6/distributed-calculator/backend/internal/evaluator"
@@ -15,13 +16,13 @@ type Worker struct {
 	ID int64
 }
 
-func NewWorker(id int64) *Worker {
+func New(id int64) *Worker {
 	return &Worker{
 		ID: id,
 	}
 }
 
-func (w *Worker) Start(url string, logger *slog.Logger, timeout time.Duration) {
+func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.Duration) {
 	for {
 		resp, err := http.Get(url)
 		if err != nil {
@@ -39,7 +40,16 @@ func (w *Worker) Start(url string, logger *slog.Logger, timeout time.Duration) {
 				continue
 			}
 
-			res, err := evaluator.Evaluate(mathResp)
+			ch := make(chan int64)
+
+			go func() {
+				err := w.sendHeartbeat(url, ch)
+				if err != nil {
+					logger.Error("Error sending heartbeat:", err, "Worker ID:", w.ID)
+				}
+			}()
+
+			res, err := evaluator.Evaluate(mathResp, heartbeat, ch, w.ID)
 			if err != nil {
 				logger.Error("Error evaluating expression:", err)
 				time.Sleep(timeout)
@@ -80,4 +90,27 @@ func (w *Worker) sendResult(result evaluator.Result, url string) error {
 	}
 
 	return nil
+}
+
+func (w *Worker) sendHeartbeat(url string, ch <-chan int64) error {
+	for data := range ch {
+		resp, err := http.Post(url+"/heartbeat", "application/json", bytes.NewBuffer(int64ToBytes(data)))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("non-OK response: %d", resp.StatusCode)
+		}
+
+	}
+
+	return nil
+}
+
+func int64ToBytes(i int64) []byte {
+	var buf = make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(i))
+	return buf
 }

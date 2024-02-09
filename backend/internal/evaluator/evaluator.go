@@ -13,7 +13,15 @@ type Result struct {
 	Result float64 `json:"result"`
 }
 
-func Evaluate(response response.Response) (Result, error) {
+func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64, workerId int64) (Result, error) {
+	ticker := time.NewTicker(heartbeat)
+
+	go func() {
+		for range ticker.C {
+			ch <- workerId
+		}
+	}()
+
 	time.Sleep(response.Timeout)
 
 	exp, err := govaluate.NewEvaluableExpression(response.Expression)
