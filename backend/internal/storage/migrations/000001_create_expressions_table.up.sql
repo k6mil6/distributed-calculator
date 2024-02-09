@@ -4,4 +4,5 @@ CREATE TABLE expressions (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_taken BOOLEAN NOT NULL DEFAULT FALSE,
     is_done BOOLEAN NOT NULL DEFAULT FALSE,
+    result FLOAT
 );

@@ -57,7 +57,7 @@ func (s *ExpressionPostgresStorage) NonTakenExpressions(context context.Context)
 	}), nil
 }
 
-func (s *ExpressionPostgresStorage) TakenExpression(context context.Context, id int64) error {
+func (s *ExpressionPostgresStorage) TakeExpression(context context.Context, id int64) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
