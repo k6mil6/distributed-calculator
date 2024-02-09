@@ -3,23 +3,34 @@ package evaluator
 import (
 	"fmt"
 	"github.com/Knetic/govaluate"
+	"github.com/k6mil6/distributed-calculator/backend/internal/response"
 	"reflect"
 	"time"
 )
 
-func Evaluate(expression string, timeout time.Duration) (float64, error) {
-	time.Sleep(timeout)
+type Result struct {
+	Id     int64   `json:"id"`
+	Result float64 `json:"result"`
+}
 
-	exp, err := govaluate.NewEvaluableExpression(expression)
+func Evaluate(response response.Response) (Result, error) {
+	time.Sleep(response.Timeout)
+
+	exp, err := govaluate.NewEvaluableExpression(response.Expression)
 	if err != nil {
-		return 0, err
+		return Result{}, err
 	}
 	result, err := exp.Evaluate(nil)
 	if err != nil {
-		return 0, err
+		return Result{}, err
 	}
 
-	return getFloat(result, reflect.TypeOf(float64(0)))
+	resFloat, err := getFloat(result, reflect.TypeOf(float64(0)))
+	if err != nil {
+		return Result{}, err
+	}
+
+	return Result{Id: response.Id, Result: resFloat}, nil
 }
 
 func getFloat(unk interface{}, floatType reflect.Type) (float64, error) {

@@ -1,9 +1,12 @@
 package worker
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/k6mil6/distributed-calculator/backend/internal/evaluator"
-	"io/ioutil"
+	"github.com/k6mil6/distributed-calculator/backend/internal/response"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -18,35 +21,63 @@ func NewWorker(id int64) *Worker {
 	}
 }
 
-func (w *Worker) Start() {
+func (w *Worker) Start(url string, logger *slog.Logger, timeout time.Duration) {
 	for {
-		// Send GET request to the HTTP server
-		resp, err := http.Get("http://example.com/endpoint")
+		resp, err := http.Get(url)
 		if err != nil {
-			// Handle error
-			fmt.Println("Error:", err)
-			time.Sleep(1 * time.Second) // Wait and send GET request again
+			logger.Error("Error sending GET request:", err)
+			time.Sleep(timeout)
 			continue
 		}
-		defer resp.Body.Close()
 
-		// Process the response based on the content
 		if resp.StatusCode == http.StatusOK {
-			// Read the response body
-			body, err := ioutil.ReadAll(resp.Body)
+			var mathResp response.Response
+			err := json.NewDecoder(resp.Body).Decode(&mathResp)
 			if err != nil {
-				// Handle error
-				fmt.Println("Error reading response body:", err)
+				logger.Error("Error decoding JSON response:", err)
+				time.Sleep(timeout)
 				continue
 			}
-			// Process the response body (evaluate math expression)
-			evaluator.Evaluate(string(body), time.Second)
+
+			res, err := evaluator.Evaluate(mathResp)
+			if err != nil {
+				logger.Error("Error evaluating expression:", err)
+				time.Sleep(timeout)
+				continue
+			}
+
+			if err := w.sendResult(res, url); err != nil {
+				logger.Error("Error sending result:", err)
+				time.Sleep(timeout)
+				continue
+			}
+
 		} else {
-			// Handle non-OK response
-			fmt.Println("Non-OK response:", resp.Status)
+			logger.Error("Non-OK response:", resp.StatusCode)
+			time.Sleep(timeout)
+			continue
 		}
 
-		// Wait and send GET request again
-		time.Sleep(1 * time.Second)
+		resp.Body.Close()
+		time.Sleep(timeout)
 	}
+}
+
+func (w *Worker) sendResult(result evaluator.Result, url string) error {
+	jsonResult, err := json.Marshal(result)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(url+"/result", "application/json", bytes.NewBuffer(jsonResult))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("non-OK response: %d", resp.StatusCode)
+	}
+
+	return nil
 }
