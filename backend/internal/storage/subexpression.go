@@ -2,8 +2,9 @@ package storage
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/k6mil6/distributed-calculator/backend/internal/models"
+	"github.com/k6mil6/distributed-calculator/backend/internal/model"
 	"github.com/samber/lo"
 	"time"
 )
@@ -18,7 +19,7 @@ func NewSubExpressionStorage(db *sqlx.DB) *SubExpressionStorage {
 	}
 }
 
-func (s *SubExpressionStorage) Save(context context.Context, subExpression models.Subexpression) error {
+func (s *SubExpressionStorage) Save(context context.Context, subExpression model.Subexpression) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
@@ -40,7 +41,7 @@ func (s *SubExpressionStorage) Save(context context.Context, subExpression model
 	return nil
 }
 
-func (s *SubExpressionStorage) NonTakenSubexpressions(context context.Context) ([]models.Subexpression, error) {
+func (s *SubExpressionStorage) NonTakenSubexpressions(context context.Context) ([]model.Subexpression, error) {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return nil, err
@@ -52,12 +53,12 @@ func (s *SubExpressionStorage) NonTakenSubexpressions(context context.Context) (
 		return nil, err
 	}
 
-	return lo.Map(subexpressions, func(subexpression dbSubexpression, _ int) models.Subexpression {
-		return models.Subexpression(subexpression)
+	return lo.Map(subexpressions, func(subexpression dbSubexpression, _ int) model.Subexpression {
+		return model.Subexpression(subexpression)
 	}), nil
 }
 
-func (s *ExpressionPostgresStorage) TakeSubexpression(context context.Context, id int64) error {
+func (s *ExpressionPostgresStorage) TakeSubexpression(context context.Context, id int) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
@@ -77,7 +78,7 @@ func (s *ExpressionPostgresStorage) TakeSubexpression(context context.Context, i
 	return nil
 }
 
-func (s *ExpressionPostgresStorage) SubexpressionIsDone(context context.Context, id int64) error {
+func (s *ExpressionPostgresStorage) SubexpressionIsDone(context context.Context, id int) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
@@ -98,9 +99,9 @@ func (s *ExpressionPostgresStorage) SubexpressionIsDone(context context.Context,
 }
 
 type dbSubexpression struct {
-	ID            int64         `db:"id"`
-	ExpressionId  int64         `db:"expression_id"`
-	WorkerId      int64         `db:"worker_id"`
+	ID            int           `db:"id"`
+	ExpressionId  uuid.UUID     `db:"expression_id"`
+	WorkerId      int           `db:"worker_id"`
 	Subexpression string        `db:"subexpression"`
 	IsTaken       bool          `db:"is_taken"`
 	IsDone        bool          `db:"is_done"`

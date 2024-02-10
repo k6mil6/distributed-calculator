@@ -3,7 +3,7 @@ package evaluator
 import (
 	"fmt"
 	"github.com/Knetic/govaluate"
-	"github.com/k6mil6/distributed-calculator/backend/internal/response"
+	"github.com/k6mil6/distributed-calculator/backend/internal/agent/response"
 	"reflect"
 	"time"
 )

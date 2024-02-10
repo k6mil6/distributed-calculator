@@ -5,6 +5,7 @@ import (
 	"github.com/k6mil6/distributed-calculator/backend/internal/config"
 	"github.com/k6mil6/distributed-calculator/backend/pkg/logger"
 	"log/slog"
+	"sync"
 )
 
 func main() {
@@ -12,14 +13,18 @@ func main() {
 	log := logger.SetupLogger(cfg.Env)
 
 	log = log.With(slog.String("env", cfg.Env))
+	log.Debug("logger debug mode enabled")
 
-	for i := 0; i < cfg.AgentsNumber; i++ {
+	var wg sync.WaitGroup
+
+	for i := 0; i < cfg.GoroutineNumber; i++ {
+		wg.Add(1)
 		go func(i int) {
+			defer wg.Done()
 			w := worker.New(int64(i))
 			w.Start(cfg.OrchestratorURL, log, cfg.WorkerTimeout, cfg.HeartbeatTimeout)
 		}(i)
 	}
 
-	log.Debug("logger debug mode enabled")
-
+	wg.Wait()
 }

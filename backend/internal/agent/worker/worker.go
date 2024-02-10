@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/k6mil6/distributed-calculator/backend/internal/evaluator"
-	"github.com/k6mil6/distributed-calculator/backend/internal/response"
+	"github.com/k6mil6/distributed-calculator/backend/internal/agent/evaluator"
+	"github.com/k6mil6/distributed-calculator/backend/internal/agent/response"
 	"log/slog"
 	"net/http"
 	"time"
@@ -98,12 +98,11 @@ func (w *Worker) sendHeartbeat(url string, ch <-chan int64) error {
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("non-OK response: %d", resp.StatusCode)
 		}
-
+		resp.Body.Close()
 	}
 
 	return nil

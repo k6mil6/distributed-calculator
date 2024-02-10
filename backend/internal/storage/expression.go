@@ -2,8 +2,9 @@ package storage
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/k6mil6/distributed-calculator/backend/internal/models"
+	"github.com/k6mil6/distributed-calculator/backend/internal/model"
 	"github.com/samber/lo"
 	"time"
 )
@@ -18,7 +19,7 @@ func NewExpressionStorage(db *sqlx.DB) *ExpressionPostgresStorage {
 	}
 }
 
-func (s *ExpressionPostgresStorage) Save(context context.Context, expression models.Expression) error {
+func (s *ExpressionPostgresStorage) Save(context context.Context, expression model.Expression) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
@@ -39,7 +40,23 @@ func (s *ExpressionPostgresStorage) Save(context context.Context, expression mod
 	return nil
 }
 
-func (s *ExpressionPostgresStorage) NonTakenExpressions(context context.Context) ([]models.Expression, error) {
+func (s *ExpressionPostgresStorage) Get(context context.Context, id uuid.UUID) (model.Expression, error) {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return model.Expression{}, err
+	}
+	defer conn.Close()
+
+	var expression dbExpression
+
+	if err := conn.GetContext(context, &expression, `SELECT * FROM expressions WHERE id = $1`, id); err != nil {
+		return model.Expression{}, err
+	}
+
+	return model.Expression(expression), nil
+}
+
+func (s *ExpressionPostgresStorage) NonTakenExpressions(context context.Context) ([]model.Expression, error) {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return nil, err
@@ -52,12 +69,12 @@ func (s *ExpressionPostgresStorage) NonTakenExpressions(context context.Context)
 		return nil, err
 	}
 
-	return lo.Map(expressions, func(expression dbExpression, _ int) models.Expression {
-		return models.Expression(expression)
+	return lo.Map(expressions, func(expression dbExpression, _ int) model.Expression {
+		return model.Expression(expression)
 	}), nil
 }
 
-func (s *ExpressionPostgresStorage) TakeExpression(context context.Context, id int64) error {
+func (s *ExpressionPostgresStorage) TakeExpression(context context.Context, id uuid.UUID) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
@@ -78,7 +95,7 @@ func (s *ExpressionPostgresStorage) TakeExpression(context context.Context, id i
 }
 
 type dbExpression struct {
-	ID         int64     `db:"id"`
+	ID         uuid.UUID `db:"id"`
 	Expression string    `db:"expression"`
 	CreatedAt  time.Time `db:"created_at"`
 	IsTaken    bool      `db:"is_taken"`

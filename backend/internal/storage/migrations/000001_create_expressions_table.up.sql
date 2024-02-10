@@ -1,5 +1,5 @@
-CREATE TABLE expressions (
-    id BIGINT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS expressions (
+    id UUID PRIMARY KEY,
     expression TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_taken BOOLEAN NOT NULL DEFAULT FALSE,

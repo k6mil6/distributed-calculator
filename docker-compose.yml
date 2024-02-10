@@ -13,14 +13,16 @@ services:
       net:
         ipv4_address: 192.168.240.2
   agent:
+    deploy:
+      mode: replicated
+      replicas: 2
     build:
       context: .
       dockerfile: agent.Dockerfile
     ports:
       - "5440:5432"
     networks:
-      net:
-        ipv4_address: 192.168.240.3
+      - net
   db:
     image: postgres:15
     restart: always

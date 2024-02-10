@@ -1,9 +1,12 @@
-package models
+package model
 
-import "time"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 type Expression struct {
-	ID         int64
+	ID         uuid.UUID
 	Expression string
 	CreatedAt  time.Time
 	IsTaken    bool
@@ -11,9 +14,9 @@ type Expression struct {
 }
 
 type Subexpression struct {
-	ID            int64
-	ExpressionId  int64
-	WorkerId      int64
+	ID            int
+	ExpressionId  uuid.UUID
+	WorkerId      int
 	Subexpression string
 	IsTaken       bool
 	IsDone        bool
