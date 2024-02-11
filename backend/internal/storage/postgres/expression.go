@@ -1,10 +1,13 @@
-package storage
+package postgres
 
 import (
 	"context"
+	"errors"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/model"
+	"github.com/k6mil6/distributed-calculator/backend/internal/storage"
+	"github.com/lib/pq"
 	"github.com/samber/lo"
 	"time"
 )
@@ -28,12 +31,19 @@ func (s *ExpressionPostgresStorage) Save(context context.Context, expression mod
 
 	row := conn.QueryRowContext(
 		context,
-		`INSERT INTO expressions (id, expression, is_taken) VALUES ($1, $2, $3)`,
+		`INSERT INTO expressions (id, expression) VALUES ($1, $2)`,
 		expression.ID,
 		expression.Expression,
 	)
 
 	if err := row.Err(); err != nil {
+		var pgErr *pq.Error
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" { // PostgreSQL error code for unique_violation
+				return storage.ErrExpressionInProgress
+			}
+			return err
+		}
 		return err
 	}
 

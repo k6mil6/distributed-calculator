@@ -1,17 +1,24 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/config"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http-server/handlers/expression/add"
 	mwlogger "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http-server/middleware/logger"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage/migrations"
+	"github.com/k6mil6/distributed-calculator/backend/internal/storage/postgres"
 	"github.com/k6mil6/distributed-calculator/backend/pkg/logger"
 	_ "github.com/lib/pq"
 	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -33,10 +40,28 @@ func main() {
 		}
 	}
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	expressionStorage := postgres.NewExpressionStorage(db)
+
 	router := chi.NewRouter()
 
 	router.Use(mwlogger.New(log))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
+
+	router.Post("/add", add.New(log, expressionStorage, ctx))
+
+	srv := &http.Server{
+		Addr:    "localhost:8080",
+		Handler: router,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Error("failed to start server", err)
+	}
+
+	log.Info("server stopped")
 
 }
