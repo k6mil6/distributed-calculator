@@ -9,17 +9,17 @@ import (
 	"time"
 )
 
-type SubExpressionStorage struct {
+type SubexpressionStorage struct {
 	db *sqlx.DB
 }
 
-func NewSubExpressionStorage(db *sqlx.DB) *SubExpressionStorage {
-	return &SubExpressionStorage{
+func NewSubExpressionStorage(db *sqlx.DB) *SubexpressionStorage {
+	return &SubexpressionStorage{
 		db: db,
 	}
 }
 
-func (s *SubExpressionStorage) Save(context context.Context, subExpression model.Subexpression) error {
+func (s *SubexpressionStorage) Save(context context.Context, subExpression model.Subexpression) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func (s *SubExpressionStorage) Save(context context.Context, subExpression model
 	return nil
 }
 
-func (s *SubExpressionStorage) NonTakenSubexpressions(context context.Context) ([]model.Subexpression, error) {
+func (s *SubexpressionStorage) NonTakenSubexpressions(context context.Context) ([]model.Subexpression, error) {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (s *SubExpressionStorage) NonTakenSubexpressions(context context.Context) (
 	}), nil
 }
 
-func (s *ExpressionPostgresStorage) TakeSubexpression(context context.Context, id int) error {
+func (s *SubexpressionStorage) TakeSubexpression(context context.Context, id int) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func (s *ExpressionPostgresStorage) TakeSubexpression(context context.Context, i
 	return nil
 }
 
-func (s *ExpressionPostgresStorage) SubexpressionIsDone(context context.Context, id int) error {
+func (s *SubexpressionStorage) SubexpressionIsDone(context context.Context, id int) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err

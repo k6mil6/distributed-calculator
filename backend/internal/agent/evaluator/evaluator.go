@@ -3,14 +3,15 @@ package evaluator
 import (
 	"fmt"
 	"github.com/Knetic/govaluate"
+	"github.com/google/uuid"
 	"github.com/k6mil6/distributed-calculator/backend/internal/agent/response"
 	"reflect"
 	"time"
 )
 
 type Result struct {
-	Id     int64   `json:"id"`
-	Result float64 `json:"result"`
+	Id     uuid.UUID `json:"id"`
+	Result float64   `json:"result"`
 }
 
 func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64, workerId int64) (Result, error) {

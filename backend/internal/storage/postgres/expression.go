@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -12,31 +13,35 @@ import (
 	"time"
 )
 
-type ExpressionPostgresStorage struct {
+type ExpressionStorage struct {
 	db *sqlx.DB
 }
 
-func NewExpressionStorage(db *sqlx.DB) *ExpressionPostgresStorage {
-	return &ExpressionPostgresStorage{
+func NewExpressionStorage(db *sqlx.DB) *ExpressionStorage {
+	return &ExpressionStorage{
 		db: db,
 	}
 }
 
-func (s *ExpressionPostgresStorage) Save(context context.Context, expression model.Expression) error {
+func (s *ExpressionStorage) Save(context context.Context, expression model.Expression) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	row := conn.QueryRowContext(
+	timeouts, err := json.Marshal(expression.Timeouts)
+	if err != nil {
+		return err
+	}
+
+	if _, err := conn.ExecContext(
 		context,
-		`INSERT INTO expressions (id, expression) VALUES ($1, $2)`,
+		`INSERT INTO expressions (id, expression, timeouts) VALUES ($1, $2, $3)`,
 		expression.ID,
 		expression.Expression,
-	)
-
-	if err := row.Err(); err != nil {
+		timeouts,
+	); err != nil {
 		var pgErr *pq.Error
 		if errors.As(err, &pgErr) {
 			if pgErr.Code == "23505" { // PostgreSQL error code for unique_violation
@@ -50,7 +55,7 @@ func (s *ExpressionPostgresStorage) Save(context context.Context, expression mod
 	return nil
 }
 
-func (s *ExpressionPostgresStorage) Get(context context.Context, id uuid.UUID) (model.Expression, error) {
+func (s *ExpressionStorage) Get(context context.Context, id uuid.UUID) (model.Expression, error) {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return model.Expression{}, err
@@ -66,7 +71,7 @@ func (s *ExpressionPostgresStorage) Get(context context.Context, id uuid.UUID) (
 	return model.Expression(expression), nil
 }
 
-func (s *ExpressionPostgresStorage) NonTakenExpressions(context context.Context) ([]model.Expression, error) {
+func (s *ExpressionStorage) NonTakenExpressions(context context.Context) ([]model.Expression, error) {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return nil, err
@@ -75,7 +80,7 @@ func (s *ExpressionPostgresStorage) NonTakenExpressions(context context.Context)
 
 	var expressions []dbExpression
 
-	if err := conn.SelectContext(context, &expressions, `SELECT * FROM expressions WHERE is_taken = false`); err != nil {
+	if err := conn.SelectContext(context, &expressions, `SELECT * FROM expressions WHERE is_taken = false ORDER BY created_at`); err != nil {
 		return nil, err
 	}
 
@@ -84,30 +89,28 @@ func (s *ExpressionPostgresStorage) NonTakenExpressions(context context.Context)
 	}), nil
 }
 
-func (s *ExpressionPostgresStorage) TakeExpression(context context.Context, id uuid.UUID) error {
+func (s *ExpressionStorage) TakeExpression(context context.Context, id uuid.UUID) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	row := conn.QueryRowContext(
+	_, err = conn.ExecContext(
 		context,
 		`UPDATE expressions SET is_taken = true WHERE id = $1`,
 		id,
 	)
 
-	if err := row.Err(); err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 type dbExpression struct {
-	ID         uuid.UUID `db:"id"`
-	Expression string    `db:"expression"`
-	CreatedAt  time.Time `db:"created_at"`
-	IsTaken    bool      `db:"is_taken"`
-	IsDone     bool      `db:"is_done"`
+	ID         uuid.UUID      `db:"id"`
+	Expression string         `db:"expression"`
+	CreatedAt  time.Time      `db:"created_at"`
+	Timeouts   map[string]int `db:"timeouts"`
+	IsTaken    bool           `db:"is_taken"`
+	IsDone     bool           `db:"is_done"`
+	Result     float64        `db:"result"`
 }

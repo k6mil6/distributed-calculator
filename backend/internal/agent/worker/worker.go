@@ -24,9 +24,9 @@ func New(id int64) *Worker {
 
 func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.Duration) {
 	for {
-		resp, err := http.Get(url)
+		resp, err := http.Get(url + "/freeExpressions")
 		if err != nil {
-			logger.Error("Error sending GET request:", err)
+			logger.Error("error sending GET request:", err)
 			time.Sleep(timeout)
 			continue
 		}
@@ -35,7 +35,7 @@ func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.
 			var mathResp response.Response
 			err := json.NewDecoder(resp.Body).Decode(&mathResp)
 			if err != nil {
-				logger.Error("Error decoding JSON response:", err)
+				logger.Error("error decoding JSON response:", err)
 				time.Sleep(timeout)
 				continue
 			}
@@ -45,25 +45,25 @@ func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.
 			go func() {
 				err := w.sendHeartbeat(url, ch)
 				if err != nil {
-					logger.Error("Error sending heartbeat:", err, "Worker ID:", w.ID)
+					logger.Error("error sending heartbeat:", err, "worker ID:", w.ID)
 				}
 			}()
 
 			res, err := evaluator.Evaluate(mathResp, heartbeat, ch, w.ID)
 			if err != nil {
-				logger.Error("Error evaluating expression:", err)
+				logger.Error("error evaluating expression:", err)
 				time.Sleep(timeout)
 				continue
 			}
 
 			if err := w.sendResult(res, url); err != nil {
-				logger.Error("Error sending result:", err)
+				logger.Error("error sending result:", err)
 				time.Sleep(timeout)
 				continue
 			}
 
 		} else {
-			logger.Error("Non-OK response:", resp.StatusCode)
+			logger.Error("non-OK response:", resp.StatusCode)
 			time.Sleep(timeout)
 			continue
 		}

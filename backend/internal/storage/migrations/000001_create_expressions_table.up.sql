@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS expressions (
     id UUID PRIMARY KEY,
     expression TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    timeouts JSONB NOT NULL,
     is_taken BOOLEAN NOT NULL DEFAULT FALSE,
     is_done BOOLEAN NOT NULL DEFAULT FALSE,
     result FLOAT

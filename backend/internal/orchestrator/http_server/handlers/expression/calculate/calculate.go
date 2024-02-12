@@ -1,4 +1,4 @@
-package add
+package calculate
 
 import (
 	"context"
@@ -14,12 +14,10 @@ import (
 )
 
 type Request struct {
-	Id         uuid.UUID `json:"id"`
-	Expression string    `json:"expression"`
-	Timeout    int       `json:"timeout"`
+	Id         uuid.UUID      `json:"id"`
+	Expression string         `json:"expression"`
+	Timeouts   map[string]int `json:"timeouts"`
 }
-
-//TODO: fix timeout type
 
 type Response struct {
 	resp.Response
@@ -32,7 +30,7 @@ type ExpressionSaver interface {
 
 func New(logger *slog.Logger, expressionSaver ExpressionSaver, context context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.expression.add.New"
+		const op = "handlers.expression.calculate.New"
 
 		logger = logger.With(
 			slog.String("op", op),
@@ -58,12 +56,13 @@ func New(logger *slog.Logger, expressionSaver ExpressionSaver, context context.C
 			return
 		}
 
+		logger.Info("math expression is valid")
+
 		err := expressionSaver.Save(context, model.Expression{
 			ID:         req.Id,
 			Expression: req.Expression,
+			Timeouts:   req.Timeouts,
 		})
-
-		// TODO: add timeout
 
 		if err != nil {
 			if errors.Is(err, storage.ErrExpressionInProgress) {
@@ -77,9 +76,6 @@ func New(logger *slog.Logger, expressionSaver ExpressionSaver, context context.C
 
 			return
 		}
-
-		// TODO: figure out why it doesn't respond
-
 		logger.Info("expression saved successfully: ", req.Id)
 
 		responseOK(w, r, req.Id)

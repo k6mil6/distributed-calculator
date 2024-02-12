@@ -9,8 +9,10 @@ type Expression struct {
 	ID         uuid.UUID
 	Expression string
 	CreatedAt  time.Time
+	Timeouts   map[string]int
 	IsTaken    bool
 	IsDone     bool
+	Result     float64
 }
 
 type Subexpression struct {

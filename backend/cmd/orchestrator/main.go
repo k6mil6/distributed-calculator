@@ -8,8 +8,9 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/config"
-	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http-server/handlers/expression/add"
-	mwlogger "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http-server/middleware/logger"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/agents/free_expressions"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/calculate"
+	mwlogger "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/middleware/logger"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage/migrations"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage/postgres"
 	"github.com/k6mil6/distributed-calculator/backend/pkg/logger"
@@ -44,6 +45,7 @@ func main() {
 	defer cancel()
 
 	expressionStorage := postgres.NewExpressionStorage(db)
+	subExpressionStorage := postgres.NewSubExpressionStorage(db)
 
 	router := chi.NewRouter()
 
@@ -51,7 +53,8 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/add", add.New(log, expressionStorage, ctx))
+	router.Post("/calculate", calculate.New(log, expressionStorage, ctx))
+	router.Get("/freeExpressions", free_expressions.New(log, subExpressionStorage, ctx))
 
 	srv := &http.Server{
 		Addr:    "localhost:8080",
