@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/config"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/agents/free_expressions"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/agents/result"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/calculate"
 	mwlogger "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/middleware/logger"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage/migrations"
@@ -54,7 +55,8 @@ func main() {
 	router.Use(middleware.URLFormat)
 
 	router.Post("/calculate", calculate.New(log, expressionStorage, ctx))
-	router.Get("/freeExpressions", free_expressions.New(log, subExpressionStorage, ctx))
+	router.Post("/freeExpressions", free_expressions.New(log, subExpressionStorage, ctx))
+	router.Post("/result", result.New(log, subExpressionStorage, ctx))
 
 	srv := &http.Server{
 		Addr:    "localhost:8080",

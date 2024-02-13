@@ -24,21 +24,29 @@ func New(id int64) *Worker {
 
 func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.Duration) {
 	for {
-		resp, err := http.Get(url + "/freeExpressions")
+		numberData := map[string]int64{"worker_id": w.ID}
+		jsonValue, _ := json.Marshal(numberData)
+
+		resp, err := http.Post(url+"/freeExpressions", "application/json", bytes.NewBuffer(jsonValue))
 		if err != nil {
-			logger.Error("error sending GET request:", err)
+			logger.Error("error sending POST request:", err)
 			time.Sleep(timeout)
 			continue
 		}
 
 		if resp.StatusCode == http.StatusOK {
 			var mathResp response.Response
+
+			logger.Info("expression received", slog.Int64("worker_id", w.ID))
+
 			err := json.NewDecoder(resp.Body).Decode(&mathResp)
 			if err != nil {
 				logger.Error("error decoding JSON response:", err)
 				time.Sleep(timeout)
 				continue
 			}
+
+			logger.Info("expression decoded", slog.Int64("worker_id", w.ID), slog.Any("expression", mathResp.Subexpression))
 
 			ch := make(chan int64)
 
@@ -49,18 +57,22 @@ func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.
 				}
 			}()
 
-			res, err := evaluator.Evaluate(mathResp, heartbeat, ch, w.ID)
+			res, err := evaluator.Evaluate(mathResp, heartbeat, ch, w.ID, logger)
 			if err != nil {
 				logger.Error("error evaluating expression:", err)
 				time.Sleep(timeout)
 				continue
 			}
 
+			logger.Info("expression evaluated", slog.Int64("worker_id", w.ID))
+
 			if err := w.sendResult(res, url); err != nil {
 				logger.Error("error sending result:", err)
 				time.Sleep(timeout)
 				continue
 			}
+
+			logger.Info("result sent", slog.Int64("worker_id", w.ID))
 
 		} else {
 			logger.Error("non-OK response:", resp.StatusCode)

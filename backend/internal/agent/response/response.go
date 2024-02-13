@@ -1,12 +1,7 @@
 package response
 
-import (
-	"github.com/google/uuid"
-	"time"
-)
-
 type Response struct {
-	Id         uuid.UUID     `json:"id"`
-	Expression string        `json:"expression"`
-	Timeout    time.Duration `json:"timeout"`
+	Id            int    `json:"id"`
+	Subexpression string `json:"subexpression"`
+	Timeout       int64  `json:"timeout"`
 }

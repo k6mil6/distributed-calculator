@@ -6,6 +6,7 @@ import (
 	"github.com/k6mil6/distributed-calculator/backend/pkg/logger"
 	"log/slog"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 		go func(i int) {
 			defer wg.Done()
 			w := worker.New(int64(i))
-			w.Start(cfg.OrchestratorURL, log, cfg.WorkerTimeout, cfg.HeartbeatTimeout)
+			w.Start(cfg.OrchestratorURL, log, cfg.WorkerTimeout+time.Duration(i), cfg.HeartbeatTimeout)
 		}(i)
 	}
 

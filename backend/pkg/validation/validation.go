@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"strings"
 	"unicode"
 )
 
@@ -11,6 +12,23 @@ func IsMathExpressionValid(expression string) bool {
 	if !checkOperationOrder(expression) {
 		return false
 	}
+	if !divisionByZero(expression) {
+		return false
+	}
+	return true
+}
+
+func divisionByZero(expression string) bool {
+	expression = strings.ReplaceAll(expression, " ", "")
+
+	for i := range expression {
+		if expression[i] == '/' {
+			if i+1 <= len(expression)-1 {
+				return false
+			}
+		}
+	}
+
 	return true
 }
 

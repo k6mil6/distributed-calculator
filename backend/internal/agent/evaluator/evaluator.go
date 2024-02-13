@@ -3,19 +3,22 @@ package evaluator
 import (
 	"fmt"
 	"github.com/Knetic/govaluate"
-	"github.com/google/uuid"
 	"github.com/k6mil6/distributed-calculator/backend/internal/agent/response"
+	"log/slog"
 	"reflect"
 	"time"
 )
 
 type Result struct {
-	Id     uuid.UUID `json:"id"`
-	Result float64   `json:"result"`
+	Id     int     `json:"id"`
+	Result float64 `json:"result"`
 }
 
-func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64, workerId int64) (Result, error) {
+func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64, workerId int64, logger *slog.Logger) (Result, error) {
 	ticker := time.NewTicker(heartbeat)
+	defer ticker.Stop()
+
+	logger.Info("evaluating expression", slog.Int64("worker_id", workerId))
 
 	go func() {
 		for range ticker.C {
@@ -23,13 +26,19 @@ func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64
 		}
 	}()
 
-	time.Sleep(response.Timeout)
+	time.Sleep(time.Duration(response.Timeout))
 
-	exp, err := govaluate.NewEvaluableExpression(response.Expression)
+	logger.Info("expression timeout has gone", slog.Int64("worker_id", workerId), slog.Any("expression", response.Subexpression))
+
+	exp, err := govaluate.NewEvaluableExpression(response.Subexpression)
+
 	if err != nil {
 		return Result{}, err
 	}
 	result, err := exp.Evaluate(nil)
+
+	logger.Info(fmt.Sprintf("result: %v", result))
+
 	if err != nil {
 		return Result{}, err
 	}
@@ -38,6 +47,8 @@ func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64
 	if err != nil {
 		return Result{}, err
 	}
+
+	logger.Info("expression evaluated", slog.Int64("worker_id", workerId))
 
 	return Result{Id: response.Id, Result: resFloat}, nil
 }

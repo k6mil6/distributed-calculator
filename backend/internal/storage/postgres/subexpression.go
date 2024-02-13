@@ -6,7 +6,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/model"
 	"github.com/samber/lo"
-	"time"
 )
 
 type SubexpressionStorage struct {
@@ -28,10 +27,10 @@ func (s *SubexpressionStorage) Save(context context.Context, subExpression model
 
 	row := conn.QueryRowContext(
 		context,
-		`INSERT INTO subexpressions (expression_id, subexpression, is_taken) VALUES ($1, $2, $3)`,
+		`INSERT INTO subexpressions (expression_id, subexpression, timeout) VALUES ($1, $2, $3)`,
 		subExpression.ExpressionId,
 		subExpression.Subexpression,
-		subExpression.IsTaken,
+		subExpression.Timeout,
 	)
 
 	if err := row.Err(); err != nil {
@@ -49,7 +48,17 @@ func (s *SubexpressionStorage) NonTakenSubexpressions(context context.Context) (
 	defer conn.Close()
 
 	var subexpressions []dbSubexpression
-	if err := conn.SelectContext(context, &subexpressions, `SELECT * FROM subexpressions WHERE is_taken = false`); err != nil {
+
+	if err := conn.SelectContext(context,
+		&subexpressions,
+		`SELECT 
+    	 id,
+    	 expression_id,
+    	 subexpression,
+    	 timeout
+    	 FROM subexpressions 
+         WHERE is_taken = false`,
+	); err != nil {
 		return nil, err
 	}
 
@@ -58,40 +67,38 @@ func (s *SubexpressionStorage) NonTakenSubexpressions(context context.Context) (
 	}), nil
 }
 
-func (s *SubexpressionStorage) TakeSubexpression(context context.Context, id int) error {
+func (s *SubexpressionStorage) TakeSubexpression(context context.Context, id, workerId int) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	row := conn.QueryRowContext(
+	if _, err := conn.ExecContext(
 		context,
-		`UPDATE subexpressions SET is_taken = true WHERE id = $1`,
+		`UPDATE subexpressions SET is_taken = true, worker_id = $1 WHERE id = $2`,
+		workerId,
 		id,
-	)
-
-	if err := row.Err(); err != nil {
+	); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *SubexpressionStorage) SubexpressionIsDone(context context.Context, id int) error {
+func (s *SubexpressionStorage) SubexpressionIsDone(context context.Context, id int, result float64) error {
 	conn, err := s.db.Connx(context)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	row := conn.QueryRowContext(
+	if _, err := conn.ExecContext(
 		context,
-		`UPDATE subexpressions SET is_done = true WHERE id = $1`,
+		`UPDATE subexpressions SET is_done = true, result = $1 WHERE id = $2`,
+		result,
 		id,
-	)
-
-	if err := row.Err(); err != nil {
+	); err != nil {
 		return err
 	}
 
@@ -99,12 +106,12 @@ func (s *SubexpressionStorage) SubexpressionIsDone(context context.Context, id i
 }
 
 type dbSubexpression struct {
-	ID            int           `db:"id"`
-	ExpressionId  uuid.UUID     `db:"expression_id"`
-	WorkerId      int           `db:"worker_id"`
-	Subexpression string        `db:"subexpression"`
-	IsTaken       bool          `db:"is_taken"`
-	IsDone        bool          `db:"is_done"`
-	Timeout       time.Duration `db:"timeout"`
-	Result        float64       `db:"result"`
+	ID            int       `db:"id"`
+	ExpressionId  uuid.UUID `db:"expression_id"`
+	WorkerId      int       `db:"worker_id"`
+	Subexpression string    `db:"subexpression"`
+	IsTaken       bool      `db:"is_taken"`
+	IsDone        bool      `db:"is_done"`
+	Timeout       int64     `db:"timeout"`
+	Result        float64   `db:"result"`
 }

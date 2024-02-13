@@ -5,6 +5,6 @@ CREATE TABLE IF NOT EXISTS subexpressions (
     subexpression TEXT NOT NULL,
     is_taken BOOLEAN NOT NULL DEFAULT FALSE,
     is_done BOOLEAN NOT NULL DEFAULT FALSE,
-    timeout INTERVAL NOT NULL DEFAULT '00:01:00',
+    timeout BIGINT NOT NULL DEFAULT 0,
     result FLOAT
 );

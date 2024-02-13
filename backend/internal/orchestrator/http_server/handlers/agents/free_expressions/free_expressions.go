@@ -7,19 +7,22 @@ import (
 	resp "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/response"
 	"log/slog"
 	"net/http"
-	"time"
 )
 
 type SubexpressionGetter interface {
 	NonTakenSubexpressions(context context.Context) ([]model.Subexpression, error)
-	TakeSubexpression(context context.Context, id int) error
+	TakeSubexpression(context context.Context, id, workerId int) error
+}
+
+type Request struct {
+	WorkerId int `json:"worker_id"`
 }
 
 type Response struct {
 	resp.Response
-	Id            int           `json:"id"`
-	Subexpression string        `json:"Subexpression"`
-	Timeout       time.Duration `json:"timeout"`
+	Id            int    `json:"id"`
+	Subexpression string `json:"subexpression"`
+	Timeout       int64  `json:"timeout"`
 }
 
 func New(logger *slog.Logger, getter SubexpressionGetter, context context.Context) http.HandlerFunc {
@@ -30,8 +33,19 @@ func New(logger *slog.Logger, getter SubexpressionGetter, context context.Contex
 			slog.String("op", op),
 		)
 
+		var req Request
+
+		if err := render.DecodeJSON(r.Body, &req); err != nil {
+			logger.Error("error rendering request", err)
+
+			render.JSON(w, r, "error rendering request")
+
+			return
+		}
+
 		latestSubexpressions, err := getter.NonTakenSubexpressions(context)
-		if err != nil {
+
+		if err != nil || len(latestSubexpressions) == 0 {
 			logger.Error("no available expressions", err)
 
 			render.JSON(w, r, resp.Error("no available expressions"))
@@ -41,7 +55,9 @@ func New(logger *slog.Logger, getter SubexpressionGetter, context context.Contex
 
 		subexpression := latestSubexpressions[0]
 
-		if err := getter.TakeSubexpression(context, subexpression.ID); err != nil {
+		logger.Info("subexpression found", slog.Int("id", subexpression.ID))
+
+		if err := getter.TakeSubexpression(context, subexpression.ID, req.WorkerId); err != nil {
 			logger.Error("error taking subexpression", err)
 
 			render.JSON(w, r, resp.Error("error taking subexpression"))
@@ -52,6 +68,8 @@ func New(logger *slog.Logger, getter SubexpressionGetter, context context.Contex
 		logger.Info("subexpression taken", slog.Int("id", subexpression.ID))
 
 		responseOK(w, r, subexpression)
+
+		logger.Info("response sent", slog.Int("id", subexpression.ID))
 	}
 }
 

@@ -22,6 +22,6 @@ type Subexpression struct {
 	Subexpression string
 	IsTaken       bool
 	IsDone        bool
-	Timeout       time.Duration
+	Timeout       int64
 	Result        float64
 }
