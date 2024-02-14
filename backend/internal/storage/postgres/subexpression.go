@@ -65,24 +65,20 @@ func (s *SubexpressionStorage) NonTakenSubexpressions(context context.Context) (
 
 	if err := conn.SelectContext(context,
 		&subexpressions,
-		`WITH non_dependent_subexpressions AS (
-    			SELECT *
+		`WITH RECURSIVE evaluated_expressions AS (
+    			SELECT id, expression, depends_on, result, 0 as level
     			FROM subexpressions
-    			WHERE depends_on IS NULL AND is_taken = false
-				)
-				SELECT * FROM non_dependent_subexpressions
-				UNION
--- Select all expressions that depend on evaluated expressions
-				SELECT e.*
-				FROM subexpressions e
-				JOIN subexpressions d ON e.depends_on = d.id
-				WHERE d.result IS NOT NULL
-				EXCEPT
--- Exclude expressions that are already evaluated
-				SELECT e.*
-				FROM subexpressions e
-				JOIN subexpressions d ON e.depends_on = d.id
-				WHERE d.result IS NOT NULL;`,
+    			WHERE depends_on IS NULL AND result IS NULL AND is_taken = false -- Non-dependent and not evaluated
+
+    			UNION ALL
+
+    			SELECT s.id, s.expression, s.depends_on, s.result, ee.level + 1
+    			FROM subexpressions s
+    			INNER JOIN evaluated_expressions ee ON s.depends_on = ee.id
+    			WHERE s.result IS NULL AND s.is_taken = false AND ee.result IS NOT NULL  -- Dependent on evaluated and not evaluated itself
+			)
+			SELECT id, expression, depends_on, level FROM evaluated_expressions
+			ORDER BY level;`,
 	); err != nil {
 		return nil, err
 	}
@@ -139,4 +135,5 @@ type dbSubexpression struct {
 	Timeout       int64     `db:"timeout"`
 	DependsOn     []int     `db:"depends_on"`
 	Result        float64   `db:"result"`
+	Level         int       `db:"level"`
 }

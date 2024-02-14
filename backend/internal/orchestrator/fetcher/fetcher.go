@@ -2,8 +2,10 @@ package fetcher
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/k6mil6/distributed-calculator/backend/internal/model"
+	shuntingYard "github.com/mgenware/go-shunting-yard"
 	"log/slog"
 	"time"
 )
@@ -58,11 +60,31 @@ func (f *Fetcher) Fetch(context context.Context) {
 	}
 
 	for _, expression := range expressions {
-		print(expression)
+		f.logger.Info("fetching expression", "expression_id", expression.ID)
 	}
 }
 
 func divideIntoSubexpressions(expression model.Expression) ([]model.Subexpression, error) {
+	infixTokens, err := shuntingYard.Scan(expression.Expression)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Infix Tokens:")
+	fmt.Println(infixTokens)
+
+	// Convert infix notation to postfix notation (RPN)
+	postfixTokens, err := shuntingYard.Parse(infixTokens)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Postfix Tokens:")
+	fmt.Println(postfixTokens)
+
+	for _, token := range postfixTokens {
+		fmt.Println(token)
+	}
 
 	return nil, nil
 }

@@ -24,4 +24,5 @@ type Subexpression struct {
 	Timeout       int64
 	DependsOn     []int
 	Result        float64
+	Level         int
 }
