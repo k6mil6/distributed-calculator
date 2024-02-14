@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/model"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage"
+	"github.com/k6mil6/distributed-calculator/backend/internal/timeout"
 	"github.com/lib/pq"
 	"github.com/samber/lo"
 	"time"
@@ -80,7 +81,7 @@ func (s *ExpressionStorage) NonTakenExpressions(context context.Context) ([]mode
 
 	var expressions []dbExpression
 
-	if err := conn.SelectContext(context, &expressions, `SELECT * FROM expressions WHERE is_taken = false ORDER BY created_at`); err != nil {
+	if err := conn.SelectContext(context, &expressions, `SELECT id, expression, created_at, timeouts, is_taken, is_done FROM expressions WHERE is_taken = false ORDER BY created_at`); err != nil {
 		return nil, err
 	}
 
@@ -106,11 +107,11 @@ func (s *ExpressionStorage) TakeExpression(context context.Context, id uuid.UUID
 }
 
 type dbExpression struct {
-	ID         uuid.UUID      `db:"id"`
-	Expression string         `db:"expression"`
-	CreatedAt  time.Time      `db:"created_at"`
-	Timeouts   map[string]int `db:"timeouts"`
-	IsTaken    bool           `db:"is_taken"`
-	IsDone     bool           `db:"is_done"`
-	Result     float64        `db:"result"`
+	ID         uuid.UUID       `db:"id"`
+	Expression string          `db:"expression"`
+	CreatedAt  time.Time       `db:"created_at"`
+	Timeouts   timeout.Timeout `db:"timeouts"`
+	IsTaken    bool            `db:"is_taken"`
+	IsDone     bool            `db:"is_done"`
+	Result     float64         `db:"result"`
 }

@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/google/uuid"
+	"github.com/k6mil6/distributed-calculator/backend/internal/timeout"
 	"time"
 )
 
@@ -9,7 +10,7 @@ type Expression struct {
 	ID         uuid.UUID
 	Expression string
 	CreatedAt  time.Time
-	Timeouts   map[string]int
+	Timeouts   timeout.Timeout
 	IsTaken    bool
 	IsDone     bool
 	Result     float64
@@ -21,7 +22,7 @@ type Subexpression struct {
 	WorkerId      int
 	Subexpression string
 	IsTaken       bool
-	Timeout       int64
+	Timeout       float64
 	DependsOn     []int
 	Result        float64
 	Level         int

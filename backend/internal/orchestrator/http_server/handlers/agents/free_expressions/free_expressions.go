@@ -20,9 +20,9 @@ type Request struct {
 
 type Response struct {
 	resp.Response
-	Id            int    `json:"id"`
-	Subexpression string `json:"subexpression"`
-	Timeout       int64  `json:"timeout"`
+	Id            int     `json:"id"`
+	Subexpression string  `json:"subexpression"`
+	Timeout       float64 `json:"timeout"`
 }
 
 func New(logger *slog.Logger, getter SubexpressionGetter, context context.Context) http.HandlerFunc {

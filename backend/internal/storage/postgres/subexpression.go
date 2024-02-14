@@ -2,9 +2,11 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/model"
+	"github.com/lib/pq"
 	"github.com/samber/lo"
 )
 
@@ -25,16 +27,16 @@ func (s *SubexpressionStorage) Save(context context.Context, subExpression model
 	}
 	defer conn.Close()
 
-	row := conn.QueryRowContext(
+	if _, err := conn.ExecContext(
 		context,
-		`INSERT INTO subexpressions (expression_id, subexpression, timeout, depends_on) VALUES ($1, $2, $3, $4)`,
+		`INSERT INTO subexpressions (id ,expression_id, subexpression, depends_on, timeout) VALUES ($1, $2, $3, $4, $5)`,
+		subExpression.ID,
 		subExpression.ExpressionId,
 		subExpression.Subexpression,
+		pq.Array(subExpression.DependsOn),
 		subExpression.Timeout,
-		subExpression.DependsOn,
-	)
-
-	if err := row.Err(); err != nil {
+	); err != nil {
+		fmt.Println(err)
 		return err
 	}
 
@@ -50,38 +52,38 @@ func (s *SubexpressionStorage) NonTakenSubexpressions(context context.Context) (
 
 	var subexpressions []dbSubexpression
 
-	//if err := conn.SelectContext(context,
-	//	&subexpressions,
-	//	`SELECT
-	//	 id,
-	//	 expression_id,
-	//	 subexpression,
-	//	 timeout
-	//	 FROM subexpressions
-	//     WHERE is_taken = false`,
-	//); err != nil {
-	//	return nil, err
-	//}
-
 	if err := conn.SelectContext(context,
 		&subexpressions,
-		`WITH RECURSIVE evaluated_expressions AS (
-    			SELECT id, expression, depends_on, result, 0 as level
-    			FROM subexpressions
-    			WHERE depends_on IS NULL AND result IS NULL AND is_taken = false -- Non-dependent and not evaluated
-
-    			UNION ALL
-
-    			SELECT s.id, s.expression, s.depends_on, s.result, ee.level + 1
-    			FROM subexpressions s
-    			INNER JOIN evaluated_expressions ee ON s.depends_on = ee.id
-    			WHERE s.result IS NULL AND s.is_taken = false AND ee.result IS NOT NULL  -- Dependent on evaluated and not evaluated itself
-			)
-			SELECT id, expression, depends_on, level FROM evaluated_expressions
-			ORDER BY level;`,
+		`SELECT
+		 id,
+		 expression_id,
+		 subexpression,
+		 timeout
+		 FROM subexpressions
+	    WHERE is_taken = false AND depends_on IS NULL`,
 	); err != nil {
 		return nil, err
 	}
+
+	//if err := conn.SelectContext(context,
+	//	&subexpressions,
+	//	`WITH RECURSIVE evaluated_subexpressions AS (
+	//			SELECT id, subexpression, depends_on, result, 0 as level
+	//			FROM subexpressions
+	//			WHERE depends_on IS NULL AND result IS NULL AND is_taken = false -- Non-dependent and not evaluated
+	//
+	//			UNION ALL
+	//
+	//			SELECT s.id, s.subexpression, s.depends_on, s.result, ee.level + 1
+	//			FROM subexpressions s
+	//			INNER JOIN evaluated_subexpressions ee ON s.depends_on = ee.id
+	//			WHERE s.result IS NULL AND s.is_taken = false AND ee.result IS NOT NULL  -- Dependent on evaluated and not evaluated itself
+	//		)
+	//		SELECT id, subexpression, depends_on, level FROM evaluated_subexpressions
+	//		ORDER BY level;`,
+	//); err != nil {
+	//	return nil, err
+	//}
 
 	return lo.Map(subexpressions, func(subexpression dbSubexpression, _ int) model.Subexpression {
 		return model.Subexpression(subexpression)
@@ -126,13 +128,29 @@ func (s *SubexpressionStorage) SubexpressionIsDone(context context.Context, id i
 	return nil
 }
 
+func (s *SubexpressionStorage) LastSubexpression(context context.Context) (int, error) {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
+	var id int
+
+	if err := conn.GetContext(context, &id, `SELECT id FROM subexpressions ORDER BY id DESC LIMIT 1`); err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
 type dbSubexpression struct {
 	ID            int       `db:"id"`
 	ExpressionId  uuid.UUID `db:"expression_id"`
 	WorkerId      int       `db:"worker_id"`
 	Subexpression string    `db:"subexpression"`
 	IsTaken       bool      `db:"is_taken"`
-	Timeout       int64     `db:"timeout"`
+	Timeout       float64   `db:"timeout"`
 	DependsOn     []int     `db:"depends_on"`
 	Result        float64   `db:"result"`
 	Level         int       `db:"level"`

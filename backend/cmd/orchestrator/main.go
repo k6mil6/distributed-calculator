@@ -8,6 +8,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/config"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/fetcher"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/agents/free_expressions"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/agents/result"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/calculate"
@@ -58,10 +59,14 @@ func main() {
 	router.Post("/freeExpressions", free_expressions.New(log, subExpressionStorage, ctx))
 	router.Post("/result", result.New(log, subExpressionStorage, ctx))
 
+	fetcher := fetcher.New(expressionStorage, subExpressionStorage, cfg.FetcherInterval, log)
+
 	srv := &http.Server{
 		Addr:    "localhost:8080",
 		Handler: router,
 	}
+
+	go fetcher.Start(ctx)
 
 	if err := srv.ListenAndServe(); err != nil {
 		log.Error("failed to start server", err)

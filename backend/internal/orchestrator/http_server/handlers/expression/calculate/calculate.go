@@ -8,15 +8,16 @@ import (
 	"github.com/k6mil6/distributed-calculator/backend/internal/model"
 	resp "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/response"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage"
+	"github.com/k6mil6/distributed-calculator/backend/internal/timeout"
 	"github.com/k6mil6/distributed-calculator/backend/pkg/validation"
 	"log/slog"
 	"net/http"
 )
 
 type Request struct {
-	Id         uuid.UUID      `json:"id"`
-	Expression string         `json:"expression"`
-	Timeouts   map[string]int `json:"timeouts"`
+	Id         uuid.UUID       `json:"id"`
+	Expression string          `json:"expression"`
+	Timeouts   timeout.Timeout `json:"timeouts"`
 }
 
 type Response struct {

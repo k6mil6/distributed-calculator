@@ -26,7 +26,7 @@ func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64
 		}
 	}()
 
-	time.Sleep(time.Duration(response.Timeout))
+	time.Sleep(time.Duration(response.Timeout) * time.Second)
 
 	logger.Info("expression timeout has gone", slog.Int64("worker_id", workerId), slog.Any("expression", response.Subexpression))
 
