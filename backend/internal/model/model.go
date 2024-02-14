@@ -21,7 +21,7 @@ type Subexpression struct {
 	WorkerId      int
 	Subexpression string
 	IsTaken       bool
-	IsDone        bool
 	Timeout       int64
+	DependsOn     []int
 	Result        float64
 }

@@ -27,10 +27,11 @@ func (s *SubexpressionStorage) Save(context context.Context, subExpression model
 
 	row := conn.QueryRowContext(
 		context,
-		`INSERT INTO subexpressions (expression_id, subexpression, timeout) VALUES ($1, $2, $3)`,
+		`INSERT INTO subexpressions (expression_id, subexpression, timeout, depends_on) VALUES ($1, $2, $3, $4)`,
 		subExpression.ExpressionId,
 		subExpression.Subexpression,
 		subExpression.Timeout,
+		subExpression.DependsOn,
 	)
 
 	if err := row.Err(); err != nil {
@@ -49,15 +50,39 @@ func (s *SubexpressionStorage) NonTakenSubexpressions(context context.Context) (
 
 	var subexpressions []dbSubexpression
 
+	//if err := conn.SelectContext(context,
+	//	&subexpressions,
+	//	`SELECT
+	//	 id,
+	//	 expression_id,
+	//	 subexpression,
+	//	 timeout
+	//	 FROM subexpressions
+	//     WHERE is_taken = false`,
+	//); err != nil {
+	//	return nil, err
+	//}
+
 	if err := conn.SelectContext(context,
 		&subexpressions,
-		`SELECT 
-    	 id,
-    	 expression_id,
-    	 subexpression,
-    	 timeout
-    	 FROM subexpressions 
-         WHERE is_taken = false`,
+		`WITH non_dependent_subexpressions AS (
+    			SELECT *
+    			FROM subexpressions
+    			WHERE depends_on IS NULL AND is_taken = false
+				)
+				SELECT * FROM non_dependent_subexpressions
+				UNION
+-- Select all expressions that depend on evaluated expressions
+				SELECT e.*
+				FROM subexpressions e
+				JOIN subexpressions d ON e.depends_on = d.id
+				WHERE d.result IS NOT NULL
+				EXCEPT
+-- Exclude expressions that are already evaluated
+				SELECT e.*
+				FROM subexpressions e
+				JOIN subexpressions d ON e.depends_on = d.id
+				WHERE d.result IS NOT NULL;`,
 	); err != nil {
 		return nil, err
 	}
@@ -95,7 +120,7 @@ func (s *SubexpressionStorage) SubexpressionIsDone(context context.Context, id i
 
 	if _, err := conn.ExecContext(
 		context,
-		`UPDATE subexpressions SET is_done = true, result = $1 WHERE id = $2`,
+		`UPDATE subexpressions SET result = $1 WHERE id = $2`,
 		result,
 		id,
 	); err != nil {
@@ -111,7 +136,7 @@ type dbSubexpression struct {
 	WorkerId      int       `db:"worker_id"`
 	Subexpression string    `db:"subexpression"`
 	IsTaken       bool      `db:"is_taken"`
-	IsDone        bool      `db:"is_done"`
 	Timeout       int64     `db:"timeout"`
+	DependsOn     []int     `db:"depends_on"`
 	Result        float64   `db:"result"`
 }
