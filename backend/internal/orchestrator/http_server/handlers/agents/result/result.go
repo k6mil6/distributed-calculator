@@ -3,13 +3,19 @@ package result
 import (
 	"context"
 	"github.com/go-chi/render"
+	"github.com/k6mil6/distributed-calculator/backend/internal/model"
 	resp "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/response"
+	"github.com/k6mil6/distributed-calculator/backend/pkg/subexpression_remaker"
 	"log/slog"
 	"net/http"
 )
 
 type ExpressionResultSaver interface {
 	SubexpressionIsDone(context context.Context, id int, result float64) error
+	DoneSubexpressions(context context.Context) ([]model.Subexpression, error)
+	SubexpressionByDependableId(context context.Context, id int) (model.Subexpression, error)
+	Delete(context context.Context, id int) error
+	Save(context context.Context, subExpression model.Subexpression) error
 }
 
 type Request struct {
@@ -53,6 +59,34 @@ func New(logger *slog.Logger, expressionResultSaver ExpressionResultSaver, conte
 		logger.Info("expression result saved", slog.Any("request", req))
 
 		responseOK(w, r, req.Id)
+
+		doneSubexpressions, err := expressionResultSaver.DoneSubexpressions(context)
+		if err != nil {
+			logger.Error("error getting done subexpressions:", err)
+			return
+		}
+
+		for _, subexpression := range doneSubexpressions {
+			dependableSubexpression, err := expressionResultSaver.SubexpressionByDependableId(context, subexpression.ID)
+			if err != nil {
+				logger.Error("error getting subexpression:", err)
+				return
+			}
+
+			remadeSubexpression := subexpression_remaker.Remake(dependableSubexpression.Subexpression, subexpression.ID, subexpression.Result)
+			dependableSubexpression.Subexpression = remadeSubexpression
+			dependableSubexpression.DependsOn = nil
+
+			if err := expressionResultSaver.Delete(context, dependableSubexpression.ID); err != nil {
+				logger.Error("error deleting subexpression:", err)
+				return
+			}
+
+			if err := expressionResultSaver.Save(context, dependableSubexpression); err != nil {
+				logger.Error("error saving subexpression:", err)
+				return
+			}
+		}
 	}
 }
 

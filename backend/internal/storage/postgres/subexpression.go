@@ -144,6 +144,69 @@ func (s *SubexpressionStorage) LastSubexpression(context context.Context) (int, 
 	return id, nil
 }
 
+func (s *SubexpressionStorage) DoneSubexpressions(context context.Context) ([]model.Subexpression, error) {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	var subexpressions []dbSubexpression
+
+	if err := conn.SelectContext(context,
+		&subexpressions,
+		`SELECT
+		 id,
+		 expression_id,
+		 subexpression,
+		 timeout
+		 FROM subexpressions
+	    WHERE result IS NOT NULL`,
+	); err != nil {
+		return nil, err
+	}
+
+	return lo.Map(subexpressions, func(subexpression dbSubexpression, _ int) model.Subexpression {
+		return model.Subexpression(subexpression)
+	}), nil
+}
+
+func (s *SubexpressionStorage) SubexpressionByDependableId(context context.Context, id int) (model.Subexpression, error) {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return model.Subexpression{}, err
+	}
+	defer conn.Close()
+
+	var subexpression dbSubexpression
+
+	arr := pq.Array(id)
+
+	if err := conn.GetContext(context, &subexpression, `SELECT * FROM subexpressions WHERE depends_on = $1`, arr); err != nil {
+		return model.Subexpression{}, err
+	}
+
+	return model.Subexpression(subexpression), nil
+}
+
+func (s *SubexpressionStorage) Delete(context context.Context, id int) error {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(
+		context,
+		`DELETE FROM subexpressions WHERE id = $1`,
+		id,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type dbSubexpression struct {
 	ID            int       `db:"id"`
 	ExpressionId  uuid.UUID `db:"expression_id"`
