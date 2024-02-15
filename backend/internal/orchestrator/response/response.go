@@ -6,9 +6,16 @@ type Response struct {
 }
 
 const (
-	StatusOK    = "OK"
-	StatusError = "Error"
+	StatusOK         = "OK"
+	StatusInProgress = "In progress"
+	StatusError      = "Error"
 )
+
+func InProgress() Response {
+	return Response{
+		Status: StatusInProgress,
+	}
+}
 
 func OK() Response {
 	return Response{

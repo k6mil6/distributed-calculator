@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS expressions (
     timeouts JSONB NOT NULL,
     is_taken BOOLEAN NOT NULL DEFAULT FALSE,
     is_done BOOLEAN NOT NULL DEFAULT FALSE,
-    result FLOAT
+    result FLOAT NOT NULL DEFAULT 0
 );

@@ -6,5 +6,5 @@ import (
 )
 
 func TestSub(t *testing.T) {
-	fmt.Println(Remake("{1} + 2", 1, 2))
+	fmt.Println(Remake("{1} + {2}", 1, 2))
 }

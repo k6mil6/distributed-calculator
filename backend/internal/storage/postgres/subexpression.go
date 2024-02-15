@@ -159,7 +159,8 @@ func (s *SubexpressionStorage) DoneSubexpressions(context context.Context) ([]mo
 		 id,
 		 expression_id,
 		 subexpression,
-		 timeout
+		 timeout,
+		 result
 		 FROM subexpressions
 	    WHERE result IS NOT NULL`,
 	); err != nil {
@@ -180,9 +181,14 @@ func (s *SubexpressionStorage) SubexpressionByDependableId(context context.Conte
 
 	var subexpression dbSubexpression
 
-	arr := pq.Array(id)
+	arr := pq.Array([]int{id})
 
-	if err := conn.GetContext(context, &subexpression, `SELECT * FROM subexpressions WHERE depends_on = $1`, arr); err != nil {
+	if err := conn.GetContext(context,
+		&subexpression,
+		`SELECT id,
+		 expression_id,
+		 subexpression,
+		 timeout FROM subexpressions WHERE depends_on = $1`, arr); err != nil {
 		return model.Subexpression{}, err
 	}
 
@@ -205,6 +211,22 @@ func (s *SubexpressionStorage) Delete(context context.Context, id int) error {
 	}
 
 	return nil
+}
+
+func (s *SubexpressionStorage) CompleteSubexpression(context context.Context, id uuid.UUID) (float64, error) {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
+	var result float64
+
+	if err := conn.GetContext(context, &result, `SELECT result FROM subexpressions WHERE expression_id = $1 ORDER BY id DESC LIMIT 1`, id); err != nil {
+		return 0, err
+	}
+
+	return result, nil
 }
 
 type dbSubexpression struct {

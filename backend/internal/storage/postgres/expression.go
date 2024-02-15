@@ -106,6 +106,41 @@ func (s *ExpressionStorage) TakeExpression(context context.Context, id uuid.UUID
 	return err
 }
 
+func (s *ExpressionStorage) AllExpressions(context context.Context) ([]model.Expression, error) {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	var expressions []dbExpression
+
+	if err := conn.SelectContext(context, &expressions, `SELECT id, expression, created_at, is_taken, is_done, result FROM expressions ORDER BY created_at`); err != nil {
+		return nil, err
+	}
+
+	return lo.Map(expressions, func(expression dbExpression, _ int) model.Expression {
+		return model.Expression(expression)
+	}), nil
+}
+
+func (s *ExpressionStorage) UpdateResult(context context.Context, id uuid.UUID, result float64) error {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = conn.ExecContext(
+		context,
+		`UPDATE expressions SET is_done = true, result = $1 WHERE id = $2`,
+		result,
+		id,
+	)
+
+	return err
+}
+
 type dbExpression struct {
 	ID         uuid.UUID       `db:"id"`
 	Expression string          `db:"expression"`

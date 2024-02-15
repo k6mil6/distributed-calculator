@@ -27,7 +27,7 @@ func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.
 		numberData := map[string]int64{"worker_id": w.ID}
 		jsonValue, _ := json.Marshal(numberData)
 
-		resp, err := http.Post(url+"/freeExpressions", "application/json", bytes.NewBuffer(jsonValue))
+		resp, err := http.Post(url+"/free_expressions", "application/json", bytes.NewBuffer(jsonValue))
 		if err != nil {
 			logger.Error("error sending POST request:", err)
 			time.Sleep(timeout)

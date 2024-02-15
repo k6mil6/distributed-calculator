@@ -67,7 +67,7 @@ func New(logger *slog.Logger, expressionSaver ExpressionSaver, context context.C
 
 		if err != nil {
 			if errors.Is(err, storage.ErrExpressionInProgress) {
-				responseOK(w, r, req.Id)
+				render.JSON(w, r, resp.InProgress())
 
 				return
 			}

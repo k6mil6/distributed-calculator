@@ -58,18 +58,25 @@ func New(logger *slog.Logger, expressionResultSaver ExpressionResultSaver, conte
 
 		logger.Info("expression result saved", slog.Any("request", req))
 
-		responseOK(w, r, req.Id)
-
 		doneSubexpressions, err := expressionResultSaver.DoneSubexpressions(context)
 		if err != nil {
 			logger.Error("error getting done subexpressions:", err)
+
+			render.JSON(w, r, resp.Error("error getting done subexpressions"))
+
 			return
 		}
 
 		for _, subexpression := range doneSubexpressions {
+
+			// TODO: REMAKE THAT ONLY EXPRESSIONS THAT DEPEND ON ONE SUBEXPRESSION ARE BEING CALCULATED
+
 			dependableSubexpression, err := expressionResultSaver.SubexpressionByDependableId(context, subexpression.ID)
 			if err != nil {
 				logger.Error("error getting subexpression:", err)
+
+				render.JSON(w, r, resp.Error("error getting subexpression"))
+
 				return
 			}
 
@@ -79,14 +86,23 @@ func New(logger *slog.Logger, expressionResultSaver ExpressionResultSaver, conte
 
 			if err := expressionResultSaver.Delete(context, dependableSubexpression.ID); err != nil {
 				logger.Error("error deleting subexpression:", err)
+
+				render.JSON(w, r, resp.Error("error deleting subexpression"))
+
 				return
 			}
 
 			if err := expressionResultSaver.Save(context, dependableSubexpression); err != nil {
 				logger.Error("error saving subexpression:", err)
+
+				render.JSON(w, r, resp.Error("error saving subexpression"))
+
 				return
 			}
 		}
+
+		responseOK(w, r, req.Id)
+
 	}
 }
 
