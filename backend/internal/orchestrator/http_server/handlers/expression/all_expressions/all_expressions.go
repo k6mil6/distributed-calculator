@@ -63,6 +63,15 @@ func New(logger *slog.Logger, expressionsSelector ExpressionsSelector, subexpres
 
 		logger.Info("expressions retrieved", slog.Any("expressions", expressions))
 
+		expressions, err = expressionsSelector.AllExpressions(context)
+		if err != nil {
+			logger.Error("error getting all expressions:", err)
+
+			render.JSON(w, r, resp.Error("error getting all expressions"))
+
+			return
+		}
+
 		render.JSON(w, r, expressions)
 	}
 }
