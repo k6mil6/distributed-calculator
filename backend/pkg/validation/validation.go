@@ -12,7 +12,7 @@ func IsMathExpressionValid(expression string) bool {
 	if !checkOperationOrder(expression) {
 		return false
 	}
-	if !divisionByZero(expression) {
+	if divisionByZero(expression) {
 		return false
 	}
 	return true
@@ -21,17 +21,14 @@ func IsMathExpressionValid(expression string) bool {
 func divisionByZero(expression string) bool {
 	expression = strings.ReplaceAll(expression, " ", "")
 
-	for i := range expression {
-		if expression[i] == '/' {
-			if i+1 <= len(expression)-1 {
-				return false
-			}
+	for i := 0; i < len(expression)-1; i++ {
+		if expression[i] == '/' && expression[i+1] == '0' {
+			return true
 		}
 	}
 
-	return true
+	return false
 }
-
 func checkParentheses(expression string) bool {
 	parenthesesOpen := 0
 	for _, char := range expression {
@@ -54,68 +51,36 @@ func checkParentheses(expression string) bool {
 func checkOperationOrder(expression string) bool {
 	lastWasOperator := true
 	lastWasMinus := false
+	lastWasNumber := false
 
-	for _, char := range expression {
+	for i, char := range expression {
 		if char == ' ' {
 			continue
 		}
-		if char == '=' {
-			if lastWasOperator {
+		if isOperator(char) {
+			if lastWasOperator && !lastWasMinus {
 				return false
 			}
 			lastWasOperator = true
-		} else if isOperator(char) {
-			if lastWasOperator && lastWasMinus {
-				return false
-			} else if lastWasOperator && char == '-' {
-				lastWasMinus = true
-			} else if lastWasOperator {
-				return false
-			} else {
-				lastWasMinus = false
-				lastWasOperator = true
+			lastWasMinus = char == '-'
+			lastWasNumber = false
+		} else if unicode.IsNumber(char) || (char == '.' && lastWasNumber) {
+			if i > 0 && (unicode.IsNumber(rune(expression[i-1])) || expression[i-1] == '.') {
+				continue
 			}
-		} else if char != '(' && char != ')' {
+			lastWasOperator = false
 			lastWasMinus = false
-			if !lastWasOperator {
-				return false
-			} else {
-				lastWasOperator = false
-				if unicode.IsLetter(char) {
-					for i, c := range expression {
-						if unicode.IsLetter(c) {
-							continue
-						}
-						if i+1 == len(expression) || !unicode.IsLetter(rune(expression[i+1])) {
-							break
-						}
-					}
-				} else if unicode.IsNumber(char) {
-					comma := false
-					for i, c := range expression {
-						if unicode.IsNumber(c) {
-							continue
-						}
-						if c == ',' {
-							if comma {
-								return false
-							}
-							comma = true
-						}
-						if i+1 == len(expression) || !unicode.IsNumber(rune(expression[i+1])) {
-							break
-						}
-					}
-				}
-			}
+			lastWasNumber = true
+		} else if char != '(' && char != ')' {
+			return false
 		}
 	}
 	return !lastWasOperator
 }
 
-func isOperator(character rune) bool {
-	switch character {
-	case '+', '-', '*', '^', '/':
+func isOperator(c rune) bool {
+	switch c {
+	case '+', '-', '*', '/':
 		return true
 	}
 	return false
