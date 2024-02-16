@@ -2,16 +2,23 @@ package fetcher
 
 import (
 	"fmt"
+	shuntingYard "github.com/mgenware/go-shunting-yard"
 	"testing"
-	"time"
 )
 
 func TestDivideIntoSubexpressions(t *testing.T) {
-	// Testing for valid expression
-	var i float64
+	infixTokens, err := shuntingYard.Scan("2^2")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	i = 10
+	postfixTokens, err := shuntingYard.Parse(infixTokens)
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	fmt.Println(time.Duration(i) * time.Second)
-
+	for _, token := range postfixTokens {
+		fmt.Println(token.Type)
+		fmt.Println(token.Value)
+	}
 }
