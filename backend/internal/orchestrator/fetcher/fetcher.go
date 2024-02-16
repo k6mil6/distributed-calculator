@@ -67,6 +67,7 @@ func (f *Fetcher) Fetch(context context.Context) {
 			return
 		}
 		f.logger.Info("fetching expression", "expression_id", expression.ID)
+		//TODO: FIGURE OUT WHY EXPRESSIONS CONTAINING ^ ARE FAILING HERE
 		subexpressions, err := f.divideIntoSubexpressions(context, expression)
 		if err != nil {
 			f.logger.Error("failed to divide expression into subexpressions", err)

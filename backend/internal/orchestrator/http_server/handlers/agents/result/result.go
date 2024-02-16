@@ -13,7 +13,7 @@ import (
 type ExpressionResultSaver interface {
 	SubexpressionIsDone(context context.Context, id int, result float64) error
 	DoneSubexpressions(context context.Context) ([]model.Subexpression, error)
-	SubexpressionByDependableId(context context.Context, id int) (model.Subexpression, error)
+	SubexpressionByDependableId(context context.Context, id int) ([]model.Subexpression, error)
 	Delete(context context.Context, id int) error
 	Save(context context.Context, subExpression model.Subexpression) error
 }
@@ -69,9 +69,7 @@ func New(logger *slog.Logger, expressionResultSaver ExpressionResultSaver, conte
 
 		for _, subexpression := range doneSubexpressions {
 
-			// TODO: REMAKE THAT ONLY EXPRESSIONS THAT DEPEND ON ONE SUBEXPRESSION ARE BEING CALCULATED
-
-			dependableSubexpression, err := expressionResultSaver.SubexpressionByDependableId(context, subexpression.ID)
+			dependableSubexpressions, err := expressionResultSaver.SubexpressionByDependableId(context, subexpression.ID)
 			if err != nil {
 				logger.Error("error getting subexpression:", err)
 
@@ -80,29 +78,46 @@ func New(logger *slog.Logger, expressionResultSaver ExpressionResultSaver, conte
 				return
 			}
 
-			remadeSubexpression := subexpression_remaker.Remake(dependableSubexpression.Subexpression, subexpression.ID, subexpression.Result)
-			dependableSubexpression.Subexpression = remadeSubexpression
-			dependableSubexpression.DependsOn = nil
+			for _, dependableSubexpression := range dependableSubexpressions {
+				remadeSubexpression := subexpression_remaker.Remake(dependableSubexpression.Subexpression, subexpression.ID, subexpression.Result)
+				dependableSubexpression.Subexpression = remadeSubexpression
 
-			if err := expressionResultSaver.Delete(context, dependableSubexpression.ID); err != nil {
-				logger.Error("error deleting subexpression:", err)
+				indexToDelete := -1
+				for i, value := range dependableSubexpression.DependsOn {
+					if value == subexpression.ID {
+						indexToDelete = i
+						break
+					}
+				}
 
-				render.JSON(w, r, resp.Error("error deleting subexpression"))
+				if indexToDelete != -1 {
+					dependableSubexpression.DependsOn = append(dependableSubexpression.DependsOn[:indexToDelete], dependableSubexpression.DependsOn[indexToDelete+1:]...)
+				}
 
-				return
-			}
+				if len(dependableSubexpression.DependsOn) == 0 {
+					dependableSubexpression.DependsOn = nil
+				}
 
-			if err := expressionResultSaver.Save(context, dependableSubexpression); err != nil {
-				logger.Error("error saving subexpression:", err)
+				logger.Info("subexpression remade", slog.Any("subexpression", dependableSubexpression.Subexpression), slog.Any("depends on", dependableSubexpression.DependsOn))
 
-				render.JSON(w, r, resp.Error("error saving subexpression"))
+				if err := expressionResultSaver.Delete(context, dependableSubexpression.ID); err != nil {
+					logger.Error("error deleting subexpression:", err)
 
-				return
+					render.JSON(w, r, resp.Error("error deleting subexpression"))
+
+					return
+				}
+
+				if err := expressionResultSaver.Save(context, dependableSubexpression); err != nil {
+					logger.Error("error saving subexpression:", err)
+
+					render.JSON(w, r, resp.Error("error saving subexpression"))
+
+					return
+				}
 			}
 		}
-
 		responseOK(w, r, req.Id)
-
 	}
 }
 

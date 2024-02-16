@@ -49,6 +49,8 @@ func New(logger *slog.Logger, expressionSaver ExpressionSaver, context context.C
 
 		logger.Info("request body decoded", slog.Any("request", req))
 
+		//TODO: FIGURE OUT WHY EXPRESSIONS CONTAINING 10 and / ARE NOT VALID
+
 		if !validation.IsMathExpressionValid(req.Expression) {
 			logger.Error("invalid math expression")
 

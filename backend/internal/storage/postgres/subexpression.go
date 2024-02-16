@@ -65,26 +65,6 @@ func (s *SubexpressionStorage) NonTakenSubexpressions(context context.Context) (
 		return nil, err
 	}
 
-	//if err := conn.SelectContext(context,
-	//	&subexpressions,
-	//	`WITH RECURSIVE evaluated_subexpressions AS (
-	//			SELECT id, subexpression, depends_on, result, 0 as level
-	//			FROM subexpressions
-	//			WHERE depends_on IS NULL AND result IS NULL AND is_taken = false -- Non-dependent and not evaluated
-	//
-	//			UNION ALL
-	//
-	//			SELECT s.id, s.subexpression, s.depends_on, s.result, ee.level + 1
-	//			FROM subexpressions s
-	//			INNER JOIN evaluated_subexpressions ee ON s.depends_on = ee.id
-	//			WHERE s.result IS NULL AND s.is_taken = false AND ee.result IS NOT NULL  -- Dependent on evaluated and not evaluated itself
-	//		)
-	//		SELECT id, subexpression, depends_on, level FROM evaluated_subexpressions
-	//		ORDER BY level;`,
-	//); err != nil {
-	//	return nil, err
-	//}
-
 	return lo.Map(subexpressions, func(subexpression dbSubexpression, _ int) model.Subexpression {
 		return model.Subexpression(subexpression)
 	}), nil
@@ -172,27 +152,46 @@ func (s *SubexpressionStorage) DoneSubexpressions(context context.Context) ([]mo
 	}), nil
 }
 
-func (s *SubexpressionStorage) SubexpressionByDependableId(context context.Context, id int) (model.Subexpression, error) {
-	conn, err := s.db.Connx(context)
+func (s *SubexpressionStorage) SubexpressionByDependableId(ctx context.Context, id int) ([]model.Subexpression, error) {
+	conn, err := s.db.Connx(ctx)
 	if err != nil {
-		return model.Subexpression{}, err
+		return nil, err
 	}
 	defer conn.Close()
 
-	var subexpression dbSubexpression
+	rows, err := conn.QueryContext(ctx, `SELECT id, expression_id, subexpression, timeout, depends_on 
+                                         FROM subexpressions WHERE $1 = ANY(depends_on)`, id)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer rows.Close()
 
-	arr := pq.Array([]int{id})
+	var subexpressions []model.Subexpression
+	for rows.Next() {
+		var subexpr model.Subexpression
+		var dependsOn pq.Int64Array // Use pq.Int64Array for PostgreSQL integer array
+		if err := rows.Scan(&subexpr.ID, &subexpr.ExpressionId, &subexpr.Subexpression, &subexpr.Timeout, &dependsOn); err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
 
-	if err := conn.GetContext(context,
-		&subexpression,
-		`SELECT id,
-		 expression_id,
-		 subexpression,
-		 timeout FROM subexpressions WHERE depends_on = $1`, arr); err != nil {
-		return model.Subexpression{}, err
+		// Convert pq.Int64Array to []int
+		subexpr.DependsOn = make([]int, len(dependsOn))
+		for i, v := range dependsOn {
+			subexpr.DependsOn[i] = int(v)
+		}
+
+		// Append the constructed model.Subexpression to the slice
+		subexpressions = append(subexpressions, subexpr)
 	}
 
-	return model.Subexpression(subexpression), nil
+	if err := rows.Err(); err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	return subexpressions, nil
 }
 
 func (s *SubexpressionStorage) Delete(context context.Context, id int) error {
