@@ -13,6 +13,7 @@ import (
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/agents/result"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/all_expressions"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/calculate"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/expression"
 	mwlogger "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/middleware/logger"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage/migrations"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage/postgres"
@@ -60,6 +61,7 @@ func main() {
 	router.Post("/free_expressions", free_expressions.New(log, subExpressionStorage, ctx))
 	router.Post("/result", result.New(log, subExpressionStorage, ctx))
 	router.Get("/all_expressions", all_expressions.New(log, expressionStorage, subExpressionStorage, ctx))
+	router.Get("/expression/{id}", expression.New(log, expressionStorage, subExpressionStorage, ctx))
 
 	fetcher := fetcher.New(expressionStorage, subExpressionStorage, cfg.FetcherInterval, log)
 

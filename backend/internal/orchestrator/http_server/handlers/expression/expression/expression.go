@@ -2,6 +2,7 @@ package expression
 
 import (
 	"context"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
 	"github.com/k6mil6/distributed-calculator/backend/internal/model"
@@ -27,7 +28,24 @@ func New(logger *slog.Logger, expressionsSelector ExpressionsSelector, subexpres
 			slog.String("op", op),
 		)
 
-		expression, err := expressionsSelector.Get(context, uuid.UUID{}) //find out how to pass id here
+		urlParam := chi.URLParam(r, "id")
+		if urlParam == "" {
+			logger.Error("no id")
+
+			render.JSON(w, r, resp.Error("no id"))
+
+			return
+		}
+		id, err := uuid.Parse(urlParam)
+		if err != nil {
+			logger.Error("invalid id")
+
+			render.JSON(w, r, resp.Error("invalid id"))
+
+			return
+		}
+
+		expression, err := expressionsSelector.Get(context, id)
 		if err != nil {
 			logger.Error("error getting expression:", err)
 
@@ -62,7 +80,7 @@ func New(logger *slog.Logger, expressionsSelector ExpressionsSelector, subexpres
 
 		logger.Info("expression result updated", slog.Any("expression", expression))
 
-		expression, err = expressionsSelector.Get(context, uuid.UUID{}) // find out how to pass id here
+		expression, err = expressionsSelector.Get(context, id)
 		if err != nil {
 			logger.Error("error getting all expressions:", err)
 
