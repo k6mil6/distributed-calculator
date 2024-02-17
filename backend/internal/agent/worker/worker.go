@@ -13,21 +13,16 @@ import (
 )
 
 type Worker struct {
-	ID int64
+	id int
 }
 
-func New(id int64) *Worker {
-	return &Worker{
-		ID: id,
-	}
+func New() *Worker {
+	return &Worker{}
 }
 
 func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.Duration) {
 	for {
-		numberData := map[string]int64{"worker_id": w.ID}
-		jsonValue, _ := json.Marshal(numberData)
-
-		resp, err := http.Post(url+"/free_expressions", "application/json", bytes.NewBuffer(jsonValue))
+		resp, err := http.Get(url + "/free_expressions")
 		if err != nil {
 			logger.Error("error sending POST request:", err)
 			time.Sleep(timeout)
@@ -37,7 +32,7 @@ func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.
 		if resp.StatusCode == http.StatusOK {
 			var mathResp response.Response
 
-			logger.Info("expression received", slog.Int64("worker_id", w.ID))
+			logger.Info("expression received")
 
 			err := json.NewDecoder(resp.Body).Decode(&mathResp)
 			if err != nil {
@@ -46,33 +41,35 @@ func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.
 				continue
 			}
 
-			logger.Info("expression decoded", slog.Int64("worker_id", w.ID), slog.Any("expression", mathResp.Subexpression))
+			w.id = mathResp.Id
 
-			ch := make(chan int64)
+			logger.Info("expression decoded", slog.Int("worker_id", w.id), slog.Any("expression", mathResp.Subexpression))
+
+			ch := make(chan int)
 
 			go func() {
-				err := w.sendHeartbeat(url, ch)
+				err := sendHeartbeat(url, ch)
 				if err != nil {
-					logger.Error("error sending heartbeat:", err, "worker ID:", w.ID)
+					logger.Error("error sending heartbeat:", err, "worker ID:", w.id)
 				}
 			}()
 
-			res, err := evaluator.Evaluate(mathResp, heartbeat, ch, w.ID, logger)
+			res, err := evaluator.Evaluate(mathResp, heartbeat, ch, w.id, logger)
 			if err != nil {
 				logger.Error("error evaluating expression:", err)
 				time.Sleep(timeout)
 				continue
 			}
 
-			logger.Info("expression evaluated", slog.Int64("worker_id", w.ID))
+			logger.Info("expression evaluated", slog.Int("worker_id", w.id))
 
-			if err := w.sendResult(res, url); err != nil {
+			if err := sendResult(res, url); err != nil {
 				logger.Error("error sending result:", err)
 				time.Sleep(timeout)
 				continue
 			}
 
-			logger.Info("result sent", slog.Int64("worker_id", w.ID))
+			logger.Info("result sent", slog.Int("worker_id", w.id))
 
 		} else {
 			logger.Error("non-OK response:", resp.StatusCode)
@@ -85,7 +82,7 @@ func (w *Worker) Start(url string, logger *slog.Logger, timeout, heartbeat time.
 	}
 }
 
-func (w *Worker) sendResult(result evaluator.Result, url string) error {
+func sendResult(result evaluator.Result, url string) error {
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
 		return err
@@ -104,9 +101,9 @@ func (w *Worker) sendResult(result evaluator.Result, url string) error {
 	return nil
 }
 
-func (w *Worker) sendHeartbeat(url string, ch <-chan int64) error {
+func sendHeartbeat(url string, ch <-chan int) error {
 	for data := range ch {
-		resp, err := http.Post(url+"/heartbeat", "application/json", bytes.NewBuffer(int64ToBytes(data)))
+		resp, err := http.Post(url+"/heartbeat", "application/json", bytes.NewBuffer(intToBytes(data)))
 		if err != nil {
 			return err
 		}
@@ -120,7 +117,7 @@ func (w *Worker) sendHeartbeat(url string, ch <-chan int64) error {
 	return nil
 }
 
-func int64ToBytes(i int64) []byte {
+func intToBytes(i int) []byte {
 	var buf = make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
 	return buf

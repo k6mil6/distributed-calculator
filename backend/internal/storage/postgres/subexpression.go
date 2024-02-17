@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -70,23 +71,34 @@ func (s *SubexpressionStorage) NonTakenSubexpressions(context context.Context) (
 	}), nil
 }
 
-func (s *SubexpressionStorage) TakeSubexpression(context context.Context, id, workerId int) error {
-	conn, err := s.db.Connx(context)
+func (s *SubexpressionStorage) TakeSubexpression(ctx context.Context, id int) (int, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	defer conn.Close()
+	defer tx.Rollback()
 
-	if _, err := conn.ExecContext(
-		context,
+	var workerId int
+	err = tx.QueryRowContext(ctx, "SELECT MAX(worker_id) FROM subexpressions").Scan(&workerId)
+	if err != nil {
+		return 0, err
+	}
+	workerId++
+
+	if _, err := tx.ExecContext(
+		ctx,
 		`UPDATE subexpressions SET is_taken = true, worker_id = $1 WHERE id = $2`,
 		workerId,
 		id,
 	); err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return workerId, nil
 }
 
 func (s *SubexpressionStorage) SubexpressionIsDone(context context.Context, id int, result float64) error {
@@ -226,6 +238,30 @@ func (s *SubexpressionStorage) CompleteSubexpression(context context.Context, id
 	}
 
 	return result, nil
+}
+
+func (s *SubexpressionStorage) LastWorkerId(context context.Context) (int, error) {
+	conn, err := s.db.Connx(context)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
+	var workerId sql.NullInt64
+
+	if err := conn.GetContext(context, &workerId, `SELECT worker_id FROM subexpressions ORDER BY worker_id LIMIT 1`); err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+
+	if !workerId.Valid {
+		fmt.Println(workerId.Valid)
+		return 0, nil
+	}
+
+	fmt.Println(workerId.Int64)
+
+	return int(workerId.Int64), nil
 }
 
 type dbSubexpression struct {

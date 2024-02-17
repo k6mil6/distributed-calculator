@@ -2,8 +2,8 @@ CREATE TABLE IF NOT EXISTS expressions (
     id UUID PRIMARY KEY,
     expression TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    timeouts JSONB NOT NULL,
+    timeouts_id INT,
     is_taken BOOLEAN NOT NULL DEFAULT FALSE,
-    is_done BOOLEAN NOT NULL DEFAULT FALSE,
-    result FLOAT NOT NULL DEFAULT 0
+    result FLOAT NOT NULL DEFAULT 0,
+    FOREIGN KEY(timeouts_id) REFERENCES timeouts(id)
 );

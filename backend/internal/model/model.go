@@ -12,7 +12,6 @@ type Expression struct {
 	CreatedAt  time.Time
 	Timeouts   timeout.Timeout
 	IsTaken    bool
-	IsDone     bool
 	Result     float64
 }
 

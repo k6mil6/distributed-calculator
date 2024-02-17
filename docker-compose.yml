@@ -15,7 +15,7 @@ services:
   agent:
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 2  # ЗДЕСЬ МОЖНО ИЗМЕНИТЬ КОЛИЧЕСТВО АГЕНТОВ
     build:
       context: .
       dockerfile: agent.Dockerfile

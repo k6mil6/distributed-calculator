@@ -14,11 +14,11 @@ type Result struct {
 	Result float64 `json:"result"`
 }
 
-func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64, workerId int64, logger *slog.Logger) (Result, error) {
+func Evaluate(response response.Response, heartbeat time.Duration, ch chan int, workerId int, logger *slog.Logger) (Result, error) {
 	ticker := time.NewTicker(heartbeat)
 	defer ticker.Stop()
 
-	logger.Info("evaluating expression", slog.Int64("worker_id", workerId))
+	logger.Info("evaluating expression", slog.Int("worker_id", workerId))
 
 	go func() {
 		for range ticker.C {
@@ -28,7 +28,7 @@ func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64
 
 	time.Sleep(time.Duration(response.Timeout) * time.Second)
 
-	logger.Info("expression timeout has gone", slog.Int64("worker_id", workerId), slog.Any("expression", response.Subexpression))
+	logger.Info("expression timeout has gone", slog.Int("worker_id", workerId), slog.Any("expression", response.Subexpression))
 
 	exp, err := govaluate.NewEvaluableExpression(response.Subexpression)
 
@@ -37,7 +37,7 @@ func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64
 	}
 	result, err := exp.Evaluate(nil)
 
-	logger.Info(fmt.Sprintf("result: %v", result))
+	logger.Info("expression evaluated", slog.Int("worker_id", workerId), slog.Any("result: %v", result))
 
 	if err != nil {
 		return Result{}, err
@@ -48,7 +48,7 @@ func Evaluate(response response.Response, heartbeat time.Duration, ch chan int64
 		return Result{}, err
 	}
 
-	logger.Info("expression evaluated", slog.Int64("worker_id", workerId))
+	logger.Info("expression evaluated", slog.Int("worker_id", workerId), slog.Any("result: %v", resFloat))
 
 	return Result{Id: response.Id, Result: resFloat}, nil
 }

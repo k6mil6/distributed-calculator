@@ -58,8 +58,8 @@ func main() {
 	router.Use(middleware.URLFormat)
 
 	router.Post("/calculate", calculate.New(log, expressionStorage, ctx))
-	router.Post("/free_expressions", free_expressions.New(log, subExpressionStorage, ctx))
 	router.Post("/result", result.New(log, subExpressionStorage, ctx))
+	router.Get("/free_expressions", free_expressions.New(log, subExpressionStorage, ctx))
 	router.Get("/all_expressions", all_expressions.New(log, expressionStorage, subExpressionStorage, ctx))
 	router.Get("/expression/{id}", expression.New(log, expressionStorage, subExpressionStorage, ctx))
 

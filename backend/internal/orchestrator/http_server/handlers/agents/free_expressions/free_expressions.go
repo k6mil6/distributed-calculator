@@ -11,11 +11,8 @@ import (
 
 type SubexpressionGetter interface {
 	NonTakenSubexpressions(context context.Context) ([]model.Subexpression, error)
-	TakeSubexpression(context context.Context, id, workerId int) error
-}
-
-type Request struct {
-	WorkerId int `json:"worker_id"`
+	TakeSubexpression(context context.Context, id int) (int, error)
+	LastWorkerId(context context.Context) (int, error)
 }
 
 type Response struct {
@@ -23,6 +20,7 @@ type Response struct {
 	Id            int     `json:"id"`
 	Subexpression string  `json:"subexpression"`
 	Timeout       float64 `json:"timeout"`
+	WorkerId      int     `json:"worker_id"`
 }
 
 func New(logger *slog.Logger, getter SubexpressionGetter, context context.Context) http.HandlerFunc {
@@ -32,16 +30,6 @@ func New(logger *slog.Logger, getter SubexpressionGetter, context context.Contex
 		logger = logger.With(
 			slog.String("op", op),
 		)
-
-		var req Request
-
-		if err := render.DecodeJSON(r.Body, &req); err != nil {
-			logger.Error("error rendering request", err)
-
-			render.JSON(w, r, "error rendering request")
-
-			return
-		}
 
 		latestSubexpressions, err := getter.NonTakenSubexpressions(context)
 
@@ -57,7 +45,9 @@ func New(logger *slog.Logger, getter SubexpressionGetter, context context.Contex
 
 		logger.Info("subexpression found", slog.Int("id", subexpression.ID))
 
-		if err := getter.TakeSubexpression(context, subexpression.ID, req.WorkerId); err != nil {
+		workerId, err := getter.TakeSubexpression(context, subexpression.ID)
+		if err != nil {
+
 			logger.Error("error taking subexpression", err)
 
 			render.JSON(w, r, resp.Error("error taking subexpression"))
@@ -67,17 +57,18 @@ func New(logger *slog.Logger, getter SubexpressionGetter, context context.Contex
 
 		logger.Info("subexpression taken", slog.Int("id", subexpression.ID))
 
-		responseOK(w, r, subexpression)
+		responseOK(w, r, subexpression, workerId)
 
 		logger.Info("response sent", slog.Int("id", subexpression.ID))
 	}
 }
 
-func responseOK(w http.ResponseWriter, r *http.Request, subexpression model.Subexpression) {
+func responseOK(w http.ResponseWriter, r *http.Request, subexpression model.Subexpression, workerId int) {
 	render.JSON(w, r, Response{
 		Response:      resp.OK(),
 		Id:            subexpression.ID,
 		Subexpression: subexpression.Subexpression,
 		Timeout:       subexpression.Timeout,
+		WorkerId:      workerId,
 	})
 }

@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/model"
@@ -31,29 +33,70 @@ func (s *ExpressionStorage) Save(context context.Context, expression model.Expre
 	}
 	defer conn.Close()
 
-	timeouts, err := json.Marshal(expression.Timeouts)
+	var timeoutsID int
+
+	tx, err := conn.BeginTx(context, nil)
 	if err != nil {
 		return err
 	}
 
-	if _, err := conn.ExecContext(
-		context,
-		`INSERT INTO expressions (id, expression, timeouts) VALUES ($1, $2, $3)`,
-		expression.ID,
-		expression.Expression,
-		timeouts,
-	); err != nil {
-		var pgErr *pq.Error
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" { // PostgreSQL error code for unique_violation
-				return storage.ErrExpressionInProgress
+	if expression.Timeouts == nil {
+		err = tx.QueryRowContext(
+			context,
+			`SELECT id FROM timeouts ORDER BY id DESC LIMIT 1`,
+		).Scan(&timeoutsID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				tx.Rollback()
+				return errors.New("no timeouts found")
 			}
+			tx.Rollback()
 			return err
 		}
+	} else {
+		timeouts, err := json.Marshal(expression.Timeouts)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		err = tx.QueryRowContext(
+			context,
+			`INSERT INTO timeouts (timeouts_values) VALUES ($1) RETURNING id`,
+			timeouts,
+		).Scan(&timeoutsID)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if _, err := tx.ExecContext(
+		context,
+		`INSERT INTO expressions (id, expression, timeouts_id) VALUES ($1, $2, $3)`,
+		expression.ID,
+		expression.Expression,
+		timeoutsID,
+	); err != nil {
+		tx.Rollback()
+		return handlePQError(err)
+	}
+
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func handlePQError(err error) error {
+	var pgErr *pq.Error
+	if errors.As(err, &pgErr) {
+		if pgErr.Code == "23505" {
+			return storage.ErrExpressionInProgress
+		}
+	}
+	return err
 }
 
 func (s *ExpressionStorage) Get(context context.Context, id uuid.UUID) (model.Expression, error) {
@@ -65,7 +108,13 @@ func (s *ExpressionStorage) Get(context context.Context, id uuid.UUID) (model.Ex
 
 	var expression dbExpression
 
-	if err := conn.GetContext(context, &expression, `SELECT * FROM expressions WHERE id = $1`, id); err != nil {
+	query := `SELECT e.id, e.expression, e.created_at, e.is_taken, t.timeouts_values, e.result
+              FROM expressions AS e
+              LEFT JOIN timeouts AS t ON e.timeouts_id = t.id
+              WHERE e.id = $1
+              ORDER BY e.created_at`
+
+	if err := conn.SelectContext(context, &expression, query, id); err != nil {
 		return model.Expression{}, err
 	}
 
@@ -81,7 +130,14 @@ func (s *ExpressionStorage) NonTakenExpressions(context context.Context) ([]mode
 
 	var expressions []dbExpression
 
-	if err := conn.SelectContext(context, &expressions, `SELECT id, expression, created_at, timeouts, is_taken, is_done FROM expressions WHERE is_taken = false ORDER BY created_at`); err != nil {
+	query := `SELECT e.id, e.expression, e.created_at, e.is_taken, t.timeouts_values
+              FROM expressions AS e
+              LEFT JOIN timeouts AS t ON e.timeouts_id = t.id
+              WHERE e.is_taken = false
+              ORDER BY e.created_at`
+
+	if err := conn.SelectContext(context, &expressions, query); err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 
@@ -115,7 +171,7 @@ func (s *ExpressionStorage) AllExpressions(context context.Context) ([]model.Exp
 
 	var expressions []dbExpression
 
-	if err := conn.SelectContext(context, &expressions, `SELECT id, expression, created_at, is_taken, is_done, result FROM expressions ORDER BY created_at`); err != nil {
+	if err := conn.SelectContext(context, &expressions, `SELECT id, expression, created_at, is_taken, result FROM expressions ORDER BY created_at`); err != nil {
 		return nil, err
 	}
 
@@ -133,7 +189,7 @@ func (s *ExpressionStorage) UpdateResult(context context.Context, id uuid.UUID, 
 
 	_, err = conn.ExecContext(
 		context,
-		`UPDATE expressions SET is_done = true, result = $1 WHERE id = $2`,
+		`UPDATE expressions SET result = $1 WHERE id = $2`,
 		result,
 		id,
 	)
@@ -145,8 +201,7 @@ type dbExpression struct {
 	ID         uuid.UUID       `db:"id"`
 	Expression string          `db:"expression"`
 	CreatedAt  time.Time       `db:"created_at"`
-	Timeouts   timeout.Timeout `db:"timeouts"`
+	Timeouts   timeout.Timeout `db:"timeouts_values"`
 	IsTaken    bool            `db:"is_taken"`
-	IsDone     bool            `db:"is_done"`
 	Result     float64         `db:"result"`
 }
