@@ -1,5 +1,8 @@
 # По всем вопросам tg - @kamil_66
 
+Диаграмма, как тут всё работает
+https://excalidraw.com/#json=gWoBa-VziAJJz358b8HIG,b2P-xXy_aJ3oYZj25ndl1Q
+
 Для проверки задания потребуется установленные 
 
 docker (https://docs.docker.com/get-docker/) и git (https://git-scm.com/downloads)
