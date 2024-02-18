@@ -7,27 +7,26 @@ import (
 )
 
 type Expression struct {
-	ID         uuid.UUID
-	Expression string
-	CreatedAt  time.Time
-	Timeouts   timeout.Timeout
-	IsTaken    bool
-	Result     float64
+	ID         uuid.UUID       `json:"id"`
+	Expression string          `json:"expression"`
+	CreatedAt  time.Time       `json:"created_at"`
+	Timeouts   timeout.Timeout `json:"timeouts"`
+	IsTaken    bool            `json:"is_taken"`
+	Result     float64         `json:"result,omitempty"`
 }
 
 type Subexpression struct {
-	ID            int
-	ExpressionId  uuid.UUID
-	WorkerId      int
-	Subexpression string
-	IsTaken       bool
-	Timeout       float64
-	DependsOn     []int
-	Result        float64
-	Level         int
+	ID            int       `json:"id"`
+	ExpressionId  uuid.UUID `json:"expression_id"`
+	WorkerId      int       `json:"worker_id,omitempty"`
+	Subexpression string    `json:"subexpression"`
+	IsTaken       bool      `json:"is_taken"`
+	Timeout       float64   `json:"timeout"`
+	DependsOn     []int     `json:"depends_on,omitempty"`
+	Result        float64   `json:"result,omitempty"`
 }
 
 type Timeouts struct {
-	ID       int
-	Timeouts timeout.Timeout
+	ID       int             `json:"id,omitempty"`
+	Timeouts timeout.Timeout `json:"timeouts,omitempty"`
 }

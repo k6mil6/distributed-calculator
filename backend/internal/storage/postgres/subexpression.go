@@ -79,7 +79,8 @@ func (s *SubexpressionStorage) TakeSubexpression(ctx context.Context, id int) (i
 	defer tx.Rollback()
 
 	var workerId int
-	err = tx.QueryRowContext(ctx, "SELECT MAX(worker_id) FROM subexpressions").Scan(&workerId)
+
+	err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(worker_id), 0) FROM subexpressions").Scan(&workerId)
 	if err != nil {
 		return 0, err
 	}
@@ -255,11 +256,8 @@ func (s *SubexpressionStorage) LastWorkerId(context context.Context) (int, error
 	}
 
 	if !workerId.Valid {
-		fmt.Println(workerId.Valid)
 		return 0, nil
 	}
-
-	fmt.Println(workerId.Int64)
 
 	return int(workerId.Int64), nil
 }
@@ -273,5 +271,4 @@ type dbSubexpression struct {
 	Timeout       float64   `db:"timeout"`
 	DependsOn     []int     `db:"depends_on"`
 	Result        float64   `db:"result"`
-	Level         int       `db:"level"`
 }

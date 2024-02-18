@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: orchestrator.Dockerfile
     depends_on:
-      - agent
+      - db
     ports:
       - "5441:5432"
     networks:
@@ -14,12 +14,10 @@ services:
   agent:
     deploy:
       mode: replicated
-      replicas: 2  # ЗДЕСЬ МОЖНО ИЗМЕНИТЬ КОЛИЧЕСТВО АГЕНТОВ
+      replicas: 1  # ЗДЕСЬ МОЖНО ИЗМЕНИТЬ КОЛИЧЕСТВО АГЕНТОВ
     build:
       context: .
       dockerfile: agent.Dockerfile
-    ports:
-      - "5440:5432"
     networks:
       - net
   db:
@@ -39,9 +37,6 @@ services:
 networks:
   net:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 192.168.240.0/24
 
 volumes:
   db:

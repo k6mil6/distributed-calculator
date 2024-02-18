@@ -9,7 +9,7 @@ import (
 
 func Start(databaseDSN string) error {
 	m, err := migrate.New(
-		"file://backend/internal/storage/migrations",
+		"file:///migrations",
 		databaseDSN,
 	)
 	if err != nil {

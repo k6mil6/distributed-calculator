@@ -114,7 +114,7 @@ func (s *ExpressionStorage) Get(context context.Context, id uuid.UUID) (model.Ex
               WHERE e.id = $1
               ORDER BY e.created_at`
 
-	if err := conn.SelectContext(context, &expression, query, id); err != nil {
+	if err := conn.GetContext(context, &expression, query, id); err != nil {
 		fmt.Println(err)
 		return model.Expression{}, err
 	}

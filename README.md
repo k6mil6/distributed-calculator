@@ -8,20 +8,13 @@ postman - для удобства отправки запросов, по жел
 Для развертывания приложения необходимо:
 
 1. клонировать репозиторий в удобную папку (git clone https://github.com/k6mil6/distributed-calculator.git .)
-2. перейти в папку 
-3. создать файл config.hcl (файл конфигурации), ниже перечислил что можно указать (можно просто скопировать)
-```
-goroutine_number=5 #изменяет кол-во горутин(воркеров) на агента(количество агентов можно изменить в файле docker-compose.yml)
-heartbeat_timeout=10s #время, раз в которое отправляется хартбит для проверки состояния воркера
-worker_timeout=30s #время раз в которое воркеры делают запрос на свободные задания
-fetcher_timeout=10s #время, раз в которое выражения делятся на подвыражения
-```
-4. прописать docker-compose up
-5. ниже представлены примеры для проверки работоспособности
+2. перейти в папку
+3. прописать docker-compose up
+4. ниже представлены примеры для проверки работоспособности
 
 пример вычисления выражения с передачей таймаутов (mac/linux)
 ```
-curl --location 'http://localhost:8080/calculate' \
+curl --location 'http://localhost:5441/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
     "id": "3422b448-2460-4fd2-9183-8000de6f8348",
@@ -47,7 +40,7 @@ $body = @{
     }
 } | ConvertTo-Json -Compress
 
-$response = Invoke-WebRequest -Uri 'http://localhost:8080/calculate' -Method Post -ContentType 'application/json' -Body $body
+$response = Invoke-WebRequest -Uri 'http://localhost:5441/calculate' -Method Post -ContentType 'application/json' -Body $body
 Write-Output $response.Content
 ```
 
@@ -56,7 +49,7 @@ timeouts - параметр, который можно не указывать, 
 
 пример вычисления выражения без передачи таймаутов(mac/linux)
 ```
-curl --location 'http://localhost:8080/calculate' \
+curl --location 'http://localhost:5441/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
     "id": "3422b448-2460-4fd2-9183-8000de6f8348",
@@ -70,7 +63,7 @@ $body = @{
     expression = "2+2+3"
 } | ConvertTo-Json -Compress
 
-$response = Invoke-WebRequest -Uri 'http://localhost:8080/calculate' -Method Post -ContentType 'application/json' -Body $body
+$response = Invoke-WebRequest -Uri 'http://localhost:5441/calculate' -Method Post -ContentType 'application/json' -Body $body
 Write-Output $response.Content
 ```
 
@@ -78,26 +71,69 @@ Write-Output $response.Content
 пример получения выражения по id (macos/linux)
 
 ```
-curl --location 'http://localhost:8080/expression/3422b448-2460-4fd2-9183-8000de6f8346'
+curl --location 'http://localhost:5441/expression/3422b448-2460-4fd2-9183-8000de6f8346'
 ```
 
 windows(powershell)
 ```
-$response = Invoke-WebRequest -Uri 'http://localhost:8080/expression/3422b448-2460-4fd2-9183-8000de6f8346' -Method Get
+$response = Invoke-WebRequest -Uri 'http://localhost:5441/expression/3422b448-2460-4fd2-9183-8000de6f8346' -Method Get
 $response.Content
 ```
 
 пример получения всех выражений (macos/linux)
 
 ```
-curl --location 'http://localhost:8080/all_expressions'
+curl --location 'http://localhost:5441/all_expressions'
 ```
 
 windows(powershell)
 ```
-$response = Invoke-WebRequest -Uri 'http://localhost:8080/all_expressions' -Method Get
+$response = Invoke-WebRequest -Uri 'http://localhost:5441/all_expressions' -Method Get
 $response.Content
 ```
+
+пример установки таймаутов для операций (macos/linux)
+
+```
+curl --location 'http://localhost:5441/set_timeouts' \
+--header 'Content-Type: application/json' \
+--data '{
+"timeouts": {
+        "+": 10, 
+        "-": 10,
+        "*": 10,
+        "/": 10
+    }
+}'
+```
+
+windows(powershell)
+```
+$body = @{
+    timeouts = @{
+        "+" = 10
+        "-" = 20
+        "/" = 10
+        "*" = 5
+    }
+} | ConvertTo-Json -Compress
+
+$response = Invoke-WebRequest -Uri 'http://localhost:5441/set_timeouts' -Method Post -ContentType 'application/json' -Body $body
+Write-Output $response.Content
+```
+
+пример получения актуальных таймаутов (macos/linux)
+
+```
+curl --location 'http://localhost:5441/actual_timeouts'
+```
+
+windows(powershell)
+```
+$response = Invoke-WebRequest -Uri 'http://localhost:5441/actual_timeouts' -Method Get
+$response.Content
+```
+
 
 
 

@@ -12,7 +12,7 @@ type Config struct {
 	Env              string        `hcl:"env" env:"ENV" default:"local"`
 	DatabaseDSN      string        `hcl:"database_dsn" env:"DB_DSN" default:"postgres://postgres:postgres@localhost:5442/postgres?sslmode=disable"`
 	GoroutineNumber  int           `hcl:"goroutine_number" env:"GOROUTINE_NUMBER" default:"5"`
-	OrchestratorURL  string        `hcl:"orchestrator_url" env:"ORCHESTRATOR_URL" default:"http://localhost:8080"`
+	OrchestratorURL  string        `hcl:"orchestrator_url" env:"ORCHESTRATOR_URL" default:"http://localhost:5441"`
 	WorkerTimeout    time.Duration `hcl:"worker_timeout" env:"WORKER_TIMEOUT" default:"1m"`
 	HeartbeatTimeout time.Duration `hcl:"heartbeat_timeout" env:"HEARTBEAT_TIMEOUT" default:"30s"`
 	FetcherInterval  time.Duration `hcl:"fetcher_interval" env:"FETCHER_INTERVAL" default:"10s"`

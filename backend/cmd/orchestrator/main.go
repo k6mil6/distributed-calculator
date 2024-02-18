@@ -72,16 +72,21 @@ func main() {
 	fetcher := fetcher.New(expressionStorage, subExpressionStorage, cfg.FetcherInterval, log)
 
 	srv := &http.Server{
-		Addr:    "localhost:8080",
+		Addr:    ":5432",
 		Handler: router,
 	}
 
 	go fetcher.Start(ctx)
 
-	if err := srv.ListenAndServe(); err != nil {
-		log.Error("failed to start server", err)
-	}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Error("failed to start server", err)
+		}
+	}()
 
+	log.Info("server started")
+
+	<-ctx.Done()
 	log.Info("server stopped")
 
 }
