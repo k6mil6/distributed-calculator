@@ -49,7 +49,7 @@ func New(logger *slog.Logger, expressionsSelector ExpressionsSelector, subexpres
 		if err != nil {
 			logger.Error("error getting expression:", err)
 
-			render.JSON(w, r, resp.Error("error getting all expression"))
+			render.JSON(w, r, resp.Error("error getting expression"))
 
 			return
 		}

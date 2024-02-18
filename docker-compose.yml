@@ -10,8 +10,7 @@ services:
     ports:
       - "5441:5432"
     networks:
-      net:
-        ipv4_address: 192.168.240.2
+      - net
   agent:
     deploy:
       mode: replicated
@@ -36,8 +35,7 @@ services:
     volumes:
       - db:/var/lib/postgresql/data/
     networks:
-      net:
-        ipv4_address: 192.168.240.4
+      - net
 networks:
   net:
     driver: bridge

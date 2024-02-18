@@ -14,6 +14,8 @@ import (
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/all_expressions"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/calculate"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/expression/expression"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/timeouts/actual_timeouts"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/timeouts/set_timeouts"
 	mwlogger "github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/middleware/logger"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage/migrations"
 	"github.com/k6mil6/distributed-calculator/backend/internal/storage/postgres"
@@ -50,6 +52,7 @@ func main() {
 
 	expressionStorage := postgres.NewExpressionStorage(db)
 	subExpressionStorage := postgres.NewSubExpressionStorage(db)
+	timeoutsStorage := postgres.NewTimeoutsStorage(db)
 
 	router := chi.NewRouter()
 
@@ -59,9 +62,12 @@ func main() {
 
 	router.Post("/calculate", calculate.New(log, expressionStorage, ctx))
 	router.Post("/result", result.New(log, subExpressionStorage, ctx))
+	router.Post("/set_timeouts", set_timeouts.New(log, timeoutsStorage, ctx))
+
 	router.Get("/free_expressions", free_expressions.New(log, subExpressionStorage, ctx))
 	router.Get("/all_expressions", all_expressions.New(log, expressionStorage, subExpressionStorage, ctx))
 	router.Get("/expression/{id}", expression.New(log, expressionStorage, subExpressionStorage, ctx))
+	router.Get("/actual_timeouts", actual_timeouts.New(log, timeoutsStorage, ctx))
 
 	fetcher := fetcher.New(expressionStorage, subExpressionStorage, cfg.FetcherInterval, log)
 

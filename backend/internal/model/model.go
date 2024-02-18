@@ -26,3 +26,8 @@ type Subexpression struct {
 	Result        float64
 	Level         int
 }
+
+type Timeouts struct {
+	ID       int
+	Timeouts timeout.Timeout
+}
