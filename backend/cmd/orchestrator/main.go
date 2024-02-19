@@ -8,6 +8,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/k6mil6/distributed-calculator/backend/internal/config"
+	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/checker"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/fetcher"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/agents/free_expressions"
 	"github.com/k6mil6/distributed-calculator/backend/internal/orchestrator/http_server/handlers/agents/result"
@@ -69,14 +70,16 @@ func main() {
 	router.Get("/expression/{id}", expression.New(log, expressionStorage, subExpressionStorage, ctx))
 	router.Get("/actual_timeouts", actual_timeouts.New(log, timeoutsStorage, ctx))
 
-	fetcher := fetcher.New(expressionStorage, subExpressionStorage, cfg.FetcherInterval, log)
+	f := fetcher.New(expressionStorage, subExpressionStorage, cfg.FetcherInterval, log)
+	c := checker.New(subExpressionStorage, cfg.CheckerInterval, log)
 
 	srv := &http.Server{
 		Addr:    ":5432",
 		Handler: router,
 	}
 
-	go fetcher.Start(ctx)
+	go f.Start(ctx)
+	go c.Start(ctx)
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {

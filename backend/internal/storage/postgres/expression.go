@@ -108,14 +108,13 @@ func (s *ExpressionStorage) Get(context context.Context, id uuid.UUID) (model.Ex
 
 	var expression dbExpression
 
-	query := `SELECT e.id, e.expression, e.created_at, e.is_taken, t.timeouts_values, e.result
+	query := `SELECT e.id, e.expression, e.created_at, e.is_taken, t.timeouts_values, e.is_done, e.result
               FROM expressions AS e
               LEFT JOIN timeouts AS t ON e.timeouts_id = t.id
               WHERE e.id = $1
               ORDER BY e.created_at`
 
 	if err := conn.GetContext(context, &expression, query, id); err != nil {
-		fmt.Println(err)
 		return model.Expression{}, err
 	}
 
@@ -172,7 +171,7 @@ func (s *ExpressionStorage) AllExpressions(context context.Context) ([]model.Exp
 
 	var expressions []dbExpression
 
-	if err := conn.SelectContext(context, &expressions, `SELECT id, expression, created_at, is_taken, result FROM expressions ORDER BY created_at`); err != nil {
+	if err := conn.SelectContext(context, &expressions, `SELECT id, expression, created_at, is_taken, result, is_done FROM expressions ORDER BY created_at`); err != nil {
 		return nil, err
 	}
 
@@ -190,7 +189,7 @@ func (s *ExpressionStorage) UpdateResult(context context.Context, id uuid.UUID, 
 
 	_, err = conn.ExecContext(
 		context,
-		`UPDATE expressions SET result = $1 WHERE id = $2`,
+		`UPDATE expressions SET result = $1, is_done = true WHERE id = $2`,
 		result,
 		id,
 	)
@@ -205,4 +204,5 @@ type dbExpression struct {
 	Timeouts   timeout.Timeout `db:"timeouts_values"`
 	IsTaken    bool            `db:"is_taken"`
 	Result     float64         `db:"result"`
+	IsDone     bool            `db:"is_done"`
 }

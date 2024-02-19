@@ -18,37 +18,48 @@ func Evaluate(response response.Response, heartbeat time.Duration, ch chan int, 
 	ticker := time.NewTicker(heartbeat)
 	defer ticker.Stop()
 
-	logger.Info("evaluating expression", slog.Int("worker_id", workerId))
+	done := make(chan struct{})
+	defer close(done)
 
 	go func() {
-		for range ticker.C {
-			ch <- workerId
+		for {
+			select {
+			case <-ticker.C:
+				ch <- workerId
+			case <-done:
+				return
+			}
 		}
 	}()
 
-	time.Sleep(time.Duration(response.Timeout) * time.Second)
+	timer := time.NewTimer(time.Duration(response.Timeout) * time.Second)
 
-	logger.Info("expression timeout has gone", slog.Int("worker_id", workerId), slog.Any("expression", response.Subexpression))
+	<-timer.C
 
+	ticker.Stop()
+
+	logger.Info("expression timeout has gone, starting evaluation", slog.Int("worker_id", workerId), slog.Any("expression", response.Subexpression), slog.Any("timeout", time.Duration(response.Timeout)*time.Second))
 	exp, err := govaluate.NewEvaluableExpression(response.Subexpression)
-
 	if err != nil {
 		return Result{}, err
 	}
+
 	result, err := exp.Evaluate(nil)
-
-	logger.Info("expression evaluated", slog.Int("worker_id", workerId), slog.Any("result: %v", result))
-
 	if err != nil {
 		return Result{}, err
 	}
+
+	logger.Info("expression evaluated", slog.Int("worker_id", workerId), slog.Any("result", result))
 
 	resFloat, err := getFloat(result, reflect.TypeOf(float64(0)))
 	if err != nil {
 		return Result{}, err
 	}
 
-	logger.Info("expression evaluated", slog.Int("worker_id", workerId), slog.Any("result: %v", resFloat))
+	logger.Info("expression evaluated to float", slog.Int("worker_id", workerId), slog.Any("result", resFloat))
+
+	// signal that the evaluation is complete.
+	done <- struct{}{}
 
 	return Result{Id: response.Id, Result: resFloat}, nil
 }

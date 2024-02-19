@@ -16,6 +16,7 @@ type Config struct {
 	WorkerTimeout    time.Duration `hcl:"worker_timeout" env:"WORKER_TIMEOUT" default:"1m"`
 	HeartbeatTimeout time.Duration `hcl:"heartbeat_timeout" env:"HEARTBEAT_TIMEOUT" default:"30s"`
 	FetcherInterval  time.Duration `hcl:"fetcher_interval" env:"FETCHER_INTERVAL" default:"10s"`
+	CheckerInterval  time.Duration `hcl:"checker_interval" env:"CHECKER_INTERVAL" default:"10s"`
 }
 
 var (

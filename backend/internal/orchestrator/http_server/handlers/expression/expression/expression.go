@@ -17,7 +17,7 @@ type ExpressionsSelector interface {
 }
 
 type SubexpressionCompleter interface {
-	CompleteSubexpression(context context.Context, id uuid.UUID) (float64, error)
+	CompleteSubexpression(context context.Context, id uuid.UUID) (model.Subexpression, error)
 }
 
 func New(logger *slog.Logger, expressionsSelector ExpressionsSelector, subexpressionCompleter SubexpressionCompleter, context context.Context) http.HandlerFunc {
@@ -54,12 +54,12 @@ func New(logger *slog.Logger, expressionsSelector ExpressionsSelector, subexpres
 			return
 		}
 
-		if expression.Result != 0 {
+		if expression.IsDone {
 			render.JSON(w, r, expression)
 			return
 		}
 
-		result, err := subexpressionCompleter.CompleteSubexpression(context, expression.ID)
+		subexp, err := subexpressionCompleter.CompleteSubexpression(context, expression.ID)
 		if err != nil {
 			logger.Error("expression is not done", err)
 
@@ -68,9 +68,18 @@ func New(logger *slog.Logger, expressionsSelector ExpressionsSelector, subexpres
 			return
 		}
 
-		expression.Result = result
+		if !subexp.IsDone {
+			logger.Info("expression is not done", slog.Any("expression", expression))
 
-		if err := expressionsSelector.UpdateResult(context, expression.ID, result); err != nil {
+			render.JSON(w, r, resp.Error("expression is not done"))
+
+			return
+		}
+
+		expression.Result = subexp.Result
+		expression.IsDone = true
+
+		if err := expressionsSelector.UpdateResult(context, expression.ID, expression.Result); err != nil {
 			logger.Error("error updating expression result:", err)
 
 			render.JSON(w, r, resp.Error("error updating expression result"))

@@ -12,7 +12,6 @@ import (
 type SubexpressionGetter interface {
 	NonTakenSubexpressions(context context.Context) ([]model.Subexpression, error)
 	TakeSubexpression(context context.Context, id int) (int, error)
-	LastWorkerId(context context.Context) (int, error)
 }
 
 type Response struct {
