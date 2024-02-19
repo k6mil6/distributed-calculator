@@ -49,7 +49,7 @@ func New(logger *slog.Logger, expressionsSelector ExpressionsSelector, subexpres
 			}
 
 			if !subexp.IsDone {
-				logger.Info("expression is not done", slog.Any("expression", expression))
+				logger.Info("expression is not done", slog.Any("expression", expression.ID), slog.Any("is_done", subexp.IsDone))
 
 				render.JSON(w, r, resp.Error("expression is not done"))
 

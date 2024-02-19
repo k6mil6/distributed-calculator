@@ -248,13 +248,13 @@ func (s *SubexpressionStorage) CompleteSubexpression(context context.Context, id
 	}
 	defer conn.Close()
 
-	var subexpression model.Subexpression
+	var subexpression dbSubexpression
 
 	if err := conn.GetContext(context, &subexpression, `SELECT result, is_done FROM subexpressions WHERE expression_id = $1 ORDER BY id DESC LIMIT 1`, id); err != nil {
 		return model.Subexpression{}, err
 	}
 
-	return subexpression, nil
+	return model.Subexpression(subexpression), nil
 }
 
 func (s *SubexpressionStorage) TakenAt(context context.Context) ([]model.Subexpression, error) {
